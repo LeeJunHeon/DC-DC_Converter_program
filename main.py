@@ -101,11 +101,17 @@ class MainWindow(QWidget, Ui_Form):
 
     def _update_output_state_ui(self, on: bool) -> None:
         """
-        출력 상태에 따라 ON 버튼 모양을 바꿔 준다.
-        - OFF: 기본 스타일, "출력 ON"
-        - ON : 초록색 배경 + 흰 글씨 + 볼드, "출력 ON (동작중)"
+        출력 상태에 따라 ON/OFF 버튼 모양을 바꿔 준다.
+
+        - OFF 상태:
+            ON 버튼  : 기본 스타일, "출력 ON"
+            OFF 버튼 : 빨간색 배경 + 흰 글씨 + 볼드, "출력 OFF (정지)"
+        - ON 상태:
+            ON 버튼  : 초록색 배경 + 흰 글씨 + 볼드, "출력 ON (동작중)"
+            OFF 버튼 : 기본 스타일, "출력 OFF"
         """
         if on:
+            # 출력 ON 상태
             self.powerOn_button.setText("출력 ON (동작중)")
             self.powerOn_button.setStyleSheet(
                 "QPushButton {"
@@ -114,9 +120,22 @@ class MainWindow(QWidget, Ui_Form):
                 "  font-weight: bold;"
                 "}"
             )
+
+            self.powerOff_button.setText("출력 OFF")
+            self.powerOff_button.setStyleSheet("")
         else:
+            # 출력 OFF 상태
             self.powerOn_button.setText("출력 ON")
             self.powerOn_button.setStyleSheet("")
+
+            self.powerOff_button.setText("출력 OFF (정지)")
+            self.powerOff_button.setStyleSheet(
+                "QPushButton {"
+                "  background-color: rgb(200, 0, 0);"
+                "  color: white;"
+                "  font-weight: bold;"
+                "}"
+            )
 
     # ------------------------------------------------------------------
     # 버튼 핸들러
@@ -175,10 +194,17 @@ class MainWindow(QWidget, Ui_Form):
     def on_power_off_clicked(self) -> None:
         """
         [출력 OFF] 버튼:
-        - 그래프 포인트 추가 중단
-        - X축 시간은 계속 흐름 (graph_controller 쪽에서 처리)
-        - 버튼 모양을 OFF 상태로 되돌림
+        - 이미 OFF면 안내만 띄움
+        - ON이면 그래프 포인트 추가 중단 + 버튼 모양 OFF 상태로 변경
         """
+        if not self.graph.is_output_on():
+            QMessageBox.information(
+                self,
+                "출력 이미 OFF",
+                "이미 출력 OFF 상태입니다.",
+            )
+            return
+
         self.graph.stop_output()
         self._update_output_state_ui(False)
 

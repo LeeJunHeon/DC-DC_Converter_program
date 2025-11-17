@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainWindowSrmrni.ui'
+## Form generated from reading UI file 'mainWindowfjZVrt.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.9.1
 ##
@@ -23,12 +23,6 @@ class Ui_Form(object):
         if not Form.objectName():
             Form.setObjectName(u"Form")
         Form.resize(1082, 661)
-        self.label_12 = QLabel(Form)
-        self.label_12.setObjectName(u"label_12")
-        self.label_12.setGeometry(QRect(1000, 0, 51, 21))
-        font = QFont()
-        font.setPointSize(12)
-        self.label_12.setFont(font)
         self.powerOn_button = QPushButton(Form)
         self.powerOn_button.setObjectName(u"powerOn_button")
         self.powerOn_button.setGeometry(QRect(10, 410, 261, 63))
@@ -37,6 +31,8 @@ class Ui_Form(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.powerOn_button.sizePolicy().hasHeightForWidth())
         self.powerOn_button.setSizePolicy(sizePolicy)
+        font = QFont()
+        font.setPointSize(12)
         self.powerOn_button.setFont(font)
         self.powerOff_button = QPushButton(Form)
         self.powerOff_button.setObjectName(u"powerOff_button")
@@ -125,7 +121,6 @@ class Ui_Form(object):
 
     def retranslateUi(self, Form):
         Form.setWindowTitle(QCoreApplication.translate("Form", u"Form", None))
-        self.label_12.setText(QCoreApplication.translate("Form", u"\ub179\ud654\uc911", None))
         self.powerOn_button.setText(QCoreApplication.translate("Form", u"\ucd9c\ub825 ON", None))
         self.powerOff_button.setText(QCoreApplication.translate("Form", u"\ucd9c\ub825 OFF", None))
         self.setValue_button.setText(QCoreApplication.translate("Form", u"\uc124\uc815 \uac12 \uc801\uc6a9", None))
