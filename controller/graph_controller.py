@@ -1,5 +1,9 @@
 # graph_controller.py
 
+import csv
+from pathlib import Path
+from datetime import datetime
+
 from PySide6.QtCore import QTimer, Qt, QDateTime, QMargins
 from PySide6.QtGui import QPen, QColor, QPainter
 from PySide6.QtWidgets import QWidget, QVBoxLayout
@@ -9,7 +13,6 @@ from PySide6.QtCharts import (
     QLineSeries,
     QValueAxis,
     QDateTimeAxis,
-    QLegendMarker,
 )
 
 
@@ -22,6 +25,7 @@ class PowerGraphWidget(QWidget):
     - Y축(오른쪽): Power(W)
     - start_output() / stop_output() 호출 시 선이 끊겨 보이도록
       ON 구간마다 새로운 QLineSeries 세그먼트를 사용
+    - start_recording() / stop_recording() 으로 CSV 녹화 기능 지원
     """
 
     def __init__(
@@ -136,6 +140,12 @@ class PowerGraphWidget(QWidget):
         self.timer.timeout.connect(self._on_timer)
         self.timer.start()
 
+        # ---------- 녹화 상태 ----------
+        self._recording: bool = False
+        self._record_file = None
+        self._record_writer: csv.writer | None = None
+        self._record_file_path: Path | None = None
+
         # ---------- ChartView ----------
         self.view = QChartView(self.chart)
         self.view.setRenderHint(QPainter.Antialiasing)
@@ -143,7 +153,7 @@ class PowerGraphWidget(QWidget):
         layout.addWidget(self.view)
 
     # ------------------------------------------------------------------
-    # 외부 API
+    # 외부 API (출력 제어)
     # ------------------------------------------------------------------
     def set_target(self, voltage: float, current: float) -> None:
         """출력 목표값 설정 (입력값 그대로 사용)."""
@@ -177,6 +187,79 @@ class PowerGraphWidget(QWidget):
     def is_output_on(self) -> bool:
         """현재 출력 ON 상태인지 여부 리턴."""
         return self._power_on
+
+    # ------------------------------------------------------------------
+    # 외부 API (녹화 제어)
+    # ------------------------------------------------------------------
+    def start_recording(
+        self,
+        input_power: float,
+        input_voltage: float,
+        input_current: float,
+    ) -> str:
+        """
+        CSV 녹화 시작.
+        - input_* : 녹화 시작 시점의 입력 파워/전압/전류 값 (파일 상단에 기록)
+        - 반환값 : 생성된 CSV 파일 경로 (string)
+        """
+        # 기존 녹화 중이면 먼저 정리
+        self.stop_recording()
+
+        logs_dir = Path.cwd() / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_path = logs_dir / f"record_{ts}.csv"
+
+        f = file_path.open("w", newline="", encoding="utf-8-sig")
+        writer = csv.writer(f)
+
+        # 상단에 입력값 기록
+        writer.writerow(
+            [
+                "# InputPower(W)",
+                f"{input_power:.3f}",
+                "InputVoltage(V)",
+                f"{input_voltage:.3f}",
+                "InputCurrent(A)",
+                f"{input_current:.3f}",
+            ]
+        )
+        # 컬럼 헤더
+        writer.writerow(["Time", "Power(W)", "Voltage(V)", "Current(A)"])
+        f.flush()
+
+        self._record_file = f
+        self._record_writer = writer
+        self._record_file_path = file_path
+        self._recording = True
+
+        return str(file_path)
+
+    def stop_recording(self) -> str | None:
+        """
+        CSV 녹화 중지.
+        - 반환값 : 마지막으로 기록한 파일 경로 (또는 None)
+        """
+        path_str = str(self._record_file_path) if self._record_file_path else None
+
+        if self._record_file is not None:
+            try:
+                self._record_file.flush()
+                self._record_file.close()
+            except Exception:
+                pass
+
+        self._record_file = None
+        self._record_writer = None
+        self._recording = False
+        # 파일 경로는 마지막 파일 안내용으로 그대로 둔다.
+
+        return path_str
+
+    def is_recording(self) -> bool:
+        """현재 CSV 녹화 중인지 여부."""
+        return self._recording
 
     # ------------------------------------------------------------------
     # 내부: 새로운 구간(세그먼트) 시작
@@ -278,6 +361,17 @@ class PowerGraphWidget(QWidget):
         self._set_numeric_widget(self.output_power_edit, power)
         self._set_numeric_widget(self.output_voltage_edit, voltage)
         self._set_numeric_widget(self.output_current_edit, current)
+
+        # ★ 녹화 중이면 CSV에 한 줄 기록
+        if self._recording and self._record_writer is not None:
+            time_str = dt.toString("yyyy-MM-dd HH:mm:ss")
+            self._record_writer.writerow(
+                [time_str, f"{power:.3f}", f"{voltage:.3f}", f"{current:.3f}"]
+            )
+            try:
+                self._record_file.flush()
+            except Exception:
+                pass
 
         # 포인트 수 제한
         for series in (
