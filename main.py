@@ -47,7 +47,10 @@ class MainWindow(QWidget, Ui_Form):
     # 입력값 읽기
     # ------------------------------------------------------------------
     def _read_input_voltage_current(self) -> tuple[float, float]:
-        """입력 전압/전류를 그대로 float 로 읽어온다. (범위 제한은 _validate_range에서)"""
+        """
+        입력 전압/전류를 float 로 변환.
+        (빈칸 여부는 각 버튼 핸들러에서 먼저 체크하고 온다고 가정)
+        """
         v_text = (self.inputVoltage_edit.text() or "").strip()
         i_text = (self.inputCurrent_edit.text() or "").strip()
 
@@ -143,14 +146,22 @@ class MainWindow(QWidget, Ui_Form):
     def on_set_value_clicked(self) -> None:
         """
         [설정 값 적용] 버튼:
+        - 전압/전류 입력칸이 비어 있으면 경고 띄우고 종료
         - 입력 전압/전류 읽기
         - 메뉴얼 스펙 범위(0~60V, 0~500A) 벗어나면 경고창만 띄우고 종료
         - 정상 범위면 graph.set_target() 으로 목표값 설정
         - 입력 파워 칸에 V*I 표시
-
-        ★ 출력 ON 상태에서도 이 버튼으로만 설정값 변경이 가능하게 두고,
-          출력 ON 버튼은 단순히 "출력 시작" 역할만 한다.
         """
+        v_text = (self.inputVoltage_edit.text() or "").strip()
+        i_text = (self.inputCurrent_edit.text() or "").strip()
+        if not v_text or not i_text:
+            QMessageBox.warning(
+                self,
+                "입력 필요",
+                "전압과 전류를 먼저 입력해 주세요.",
+            )
+            return
+
         voltage, current = self._read_input_voltage_current()
 
         if not self._validate_range(voltage, current):
@@ -166,6 +177,7 @@ class MainWindow(QWidget, Ui_Form):
             → 아무 설정도 바꾸지 않고
             → 안내 메시지만 띄움
         - 출력 OFF 상태라면:
+            → 전압/전류 입력칸이 비어 있으면 경고 후 종료
             → 현재 입력값을 읽어서 스펙 범위 체크
             → 범위를 벗어나면 경고창 띄우고 출력 시작 안 함
             → 범위 안이면 target 설정 + 입력 파워 계산 + 그래프 출력 시작
@@ -180,7 +192,18 @@ class MainWindow(QWidget, Ui_Form):
             )
             return
 
-        # 아직 OFF 상태 → 출력 시작 절차
+        # 아직 OFF 상태 → 먼저 빈칸 체크
+        v_text = (self.inputVoltage_edit.text() or "").strip()
+        i_text = (self.inputCurrent_edit.text() or "").strip()
+        if not v_text or not i_text:
+            QMessageBox.warning(
+                self,
+                "입력 필요",
+                "전압과 전류를 먼저 입력해 주세요.",
+            )
+            return
+
+        # 실제 숫자 읽기
         voltage, current = self._read_input_voltage_current()
 
         if not self._validate_range(voltage, current):
