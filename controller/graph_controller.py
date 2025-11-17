@@ -33,7 +33,7 @@ class PowerGraphWidget(QWidget):
     ):
         super().__init__(parent)
 
-        # UI에서 넘겨주는 출력용 위젯 (타입은 QLCDNumber / QPlainTextEdit 등 섞여 있음)
+        # UI에서 넘겨주는 출력용 위젯
         self.output_power_edit = output_power_edit
         self.output_voltage_edit = output_voltage_edit
         self.output_current_edit = output_current_edit
@@ -41,7 +41,7 @@ class PowerGraphWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # ---------- Chart & Series ----------
+        # ---------- Chart ----------
         self.chart = QChart()
         self.chart.setTitle("")
 
@@ -50,29 +50,12 @@ class PowerGraphWidget(QWidget):
         self.chart.setPlotAreaBackgroundBrush(bg)
         self.chart.setPlotAreaBackgroundVisible(True)
 
-        # 그래프 영역 크게 보이도록 margin 최소화
+        # 그래프 영역 크게
         self.chart.setMargins(QMargins(10, 10, 10, 10))
         if self.chart.layout() is not None:
             self.chart.layout().setContentsMargins(0, 0, 0, 0)
 
-        # 선 3개
-        self.series_power = QLineSeries()
-        self.series_power.setName("Power (W)")
-        self.series_power.setPen(QPen(QColor(255, 0, 0), 2))
-
-        self.series_voltage = QLineSeries()
-        self.series_voltage.setName("Voltage (V)")
-        self.series_voltage.setPen(QPen(QColor(0, 120, 255), 2))
-
-        self.series_current = QLineSeries()
-        self.series_current.setName("Current (A)")
-        self.series_current.setPen(QPen(QColor(0, 180, 0), 2))
-
-        self.chart.addSeries(self.series_power)
-        self.chart.addSeries(self.series_voltage)
-        self.chart.addSeries(self.series_current)
-
-        # ---------- 축 설정 ----------
+        # ---------- 축 ----------
         self.window_sec = 10
         self.window_sec_int = int(self.window_sec)
 
@@ -83,19 +66,16 @@ class PowerGraphWidget(QWidget):
         self.axis_x.setTickCount(self.window_sec_int + 1)  # 1초 간격 눈금
 
         now = QDateTime.currentDateTime()
-        self.axis_x.setRange(
-            now.addSecs(-self.window_sec_int),
-            now,
-        )
+        self.axis_x.setRange(now.addSecs(-self.window_sec_int), now)
 
-        # 왼쪽 Y축: V / A  (0~500까지만 보이게)
+        # 왼쪽 Y축: V / A
         self.axis_y_left = QValueAxis()
         self.axis_y_left.setTitleText("Voltage (V) / Current (A)")
         self.axis_y_left.setRange(0, 500)
         self.axis_y_left.setLabelFormat("%.0f")
         self.axis_y_left.setTickCount(11)  # 0,50,...,500
 
-        # 오른쪽 Y축: W (0~20 kW)
+        # 오른쪽 Y축: W
         self.axis_y_right = QValueAxis()
         self.axis_y_right.setTitleText("Power (W)")
         self.axis_y_right.setRange(0, 20000)
@@ -106,37 +86,33 @@ class PowerGraphWidget(QWidget):
         self.chart.addAxis(self.axis_y_left, Qt.AlignLeft)
         self.chart.addAxis(self.axis_y_right, Qt.AlignRight)
 
-        # 축 연결
-        for s in (self.series_power, self.series_voltage, self.series_current):
-            s.attachAxis(self.axis_x)
+        # ---------- 시리즈 (ON 구간마다 새로운 세그먼트) ----------
+        self.power_series_segments = []
+        self.voltage_series_segments = []
+        self.current_series_segments = []
 
-        self.series_voltage.attachAxis(self.axis_y_left)
-        self.series_current.attachAxis(self.axis_y_left)
-        self.series_power.attachAxis(self.axis_y_right)
+        self._active_power_series = None
+        self._active_voltage_series = None
+        self._active_current_series = None
 
-        # 범례
-        self.chart.legend().setVisible(True)
-        self.chart.legend().setAlignment(Qt.AlignTop)
+        # 범례는 첫 번째 세그먼트에서만 이름을 보여준다.
+        self._legend_created = False
 
         # ---------- ChartView ----------
         self.view = QChartView(self.chart)
         self.view.setRenderHint(QPainter.Antialiasing)
         self.view.setStyleSheet("border: 1px solid black;")
-
         layout.addWidget(self.view)
 
-        # ---------- 상태 / 타이머 ----------
-        self.max_points = 500
+        # ---------- 상태 & 타이머 ----------
+        self.max_points_per_series = 500
 
-        # 현재 목표값 (설정 값 적용 / 출력 ON 에서 설정)
         self._target_voltage = 0.0
         self._target_current = 0.0
         self._target_power = 0.0
 
-        # 출력 ON 여부
         self._power_on = False
 
-        # 타이머는 항상 돈다 (그래프 그릴 때만 포인트 추가)
         self._update_interval_ms = 1000  # 1초
         self.timer = QTimer(self)
         self.timer.setInterval(self._update_interval_ms)
@@ -144,13 +120,10 @@ class PowerGraphWidget(QWidget):
         self.timer.start()
 
     # ------------------------------------------------------------------
-    # 외부에서 호출하는 API  (★ 클램프 없음: 입력 그대로 사용)
+    # 외부 API
     # ------------------------------------------------------------------
     def set_target(self, voltage: float, current: float) -> None:
-        """
-        목표 전압/전류 설정.
-        - 여기서는 사용자가 입력한 값을 그대로 사용한다.
-        """
+        """출력 목표값 설정 (입력값 그대로 사용)."""
         v = float(voltage)
         c = float(current)
         p = v * c
@@ -160,12 +133,73 @@ class PowerGraphWidget(QWidget):
         self._target_power = p
 
     def start_output(self) -> None:
-        """출력 ON: 그래프 포인트 추가 시작"""
+        """
+        출력 ON:
+        - 새로운 시리즈 세그먼트를 만들어서 이후 데이터는 그 세그먼트에만 추가.
+        - 이렇게 하면 출력 OFF 기간에는 선이 비어 있게 보인다.
+        """
+        if self._power_on:
+            return
+
         self._power_on = True
+        self._start_new_segment()
 
     def stop_output(self) -> None:
-        """출력 OFF: 그래프 포인트 추가 중단 (축 시간은 계속 진행)"""
+        """출력 OFF: 이후에는 포인트를 추가하지 않는다."""
         self._power_on = False
+        self._active_power_series = None
+        self._active_voltage_series = None
+        self._active_current_series = None
+
+    # ------------------------------------------------------------------
+    # 내부: 새로운 구간(세그먼트) 시작
+    # ------------------------------------------------------------------
+    def _start_new_segment(self) -> None:
+        """ON 상태로 전환될 때마다 새 QLineSeries를 만들어 연결한다."""
+        # Power
+        power_series = QLineSeries()
+        if not self._legend_created:
+            power_series.setName("Power (W)")
+        else:
+            power_series.setName("")  # 범례 중복 방지
+        power_series.setPen(QPen(QColor(255, 0, 0), 2))
+        self.chart.addSeries(power_series)
+        power_series.attachAxis(self.axis_x)
+        power_series.attachAxis(self.axis_y_right)
+        self.power_series_segments.append(power_series)
+        self._active_power_series = power_series
+
+        # Voltage
+        voltage_series = QLineSeries()
+        if not self._legend_created:
+            voltage_series.setName("Voltage (V)")
+        else:
+            voltage_series.setName("")
+        voltage_series.setPen(QPen(QColor(0, 120, 255), 2))
+        self.chart.addSeries(voltage_series)
+        voltage_series.attachAxis(self.axis_x)
+        voltage_series.attachAxis(self.axis_y_left)
+        self.voltage_series_segments.append(voltage_series)
+        self._active_voltage_series = voltage_series
+
+        # Current
+        current_series = QLineSeries()
+        if not self._legend_created:
+            current_series.setName("Current (A)")
+        else:
+            current_series.setName("")
+        current_series.setPen(QPen(QColor(0, 180, 0), 2))
+        self.chart.addSeries(current_series)
+        current_series.attachAxis(self.axis_x)
+        current_series.attachAxis(self.axis_y_left)
+        self.current_series_segments.append(current_series)
+        self._active_current_series = current_series
+
+        # 첫 세그먼트에서만 범례 켜기
+        if not self._legend_created:
+            self._legend_created = True
+            self.chart.legend().setVisible(True)
+            self.chart.legend().setAlignment(Qt.AlignTop)
 
     # ------------------------------------------------------------------
     # 타이머 콜백
@@ -173,8 +207,8 @@ class PowerGraphWidget(QWidget):
     def _on_timer(self) -> None:
         """
         1초마다 호출.
-        - 항상 X축을 현재 시간 기준으로 슬라이딩
-        - 출력 ON 상태일 때만 포인트 추가
+        - 항상 X축을 현재 시간 기준으로 슬라이딩.
+        - 출력 ON 상태이면서 active 시리즈가 있을 때만 포인트 추가.
         """
         now = QDateTime.currentDateTime()
 
@@ -182,64 +216,61 @@ class PowerGraphWidget(QWidget):
         start_dt = now.addSecs(-self.window_sec_int)
         self.axis_x.setRange(start_dt, now)
 
-        # 출력 OFF면 선 없이 시간만 흐름
         if not self._power_on:
             return
 
-        voltage = self._target_voltage
-        current = self._target_current
-        power = self._target_power
+        if (
+            self._active_power_series is None
+            or self._active_voltage_series is None
+            or self._active_current_series is None
+        ):
+            return
 
-        self.append_point(now, power, voltage, current)
+        self._append_point(now, self._target_power, self._target_voltage, self._target_current)
 
     # ------------------------------------------------------------------
-    # 숫자 표시용 헬퍼 (QLCDNumber / QPlainTextEdit / QLineEdit 모두 지원)
+    # 숫자 표시 헬퍼 (QLCDNumber / QPlainTextEdit / QLineEdit 지원)
     # ------------------------------------------------------------------
     def _set_numeric_widget(self, widget, value: float) -> None:
         if widget is None:
             return
         text = f"{value:.1f}"
 
-        # QLCDNumber
-        if hasattr(widget, "display"):
+        if hasattr(widget, "display"):          # QLCDNumber
             widget.display(text)
-        # QPlainTextEdit
-        elif hasattr(widget, "setPlainText"):
+        elif hasattr(widget, "setPlainText"):   # QPlainTextEdit
             widget.setPlainText(text)
-        # QLineEdit 등 setText 있는 경우
-        elif hasattr(widget, "setText"):
+        elif hasattr(widget, "setText"):        # QLineEdit, QLabel 등
             widget.setText(text)
 
     # ------------------------------------------------------------------
-    # 실제 데이터 추가용 내부 API
+    # 실제 데이터 추가
     # ------------------------------------------------------------------
-    def append_point(
+    def _append_point(
         self,
         dt: QDateTime,
         power: float,
         voltage: float,
         current: float,
     ) -> None:
-        """
-        dt: QDateTime (측정 시각)
-        power: 전력 [W]
-        voltage: 전압 [V]
-        current: 전류 [A]
-        """
         x = dt.toMSecsSinceEpoch()
 
-        # 그래프 데이터 추가
-        self.series_power.append(x, power)
-        self.series_voltage.append(x, voltage)
-        self.series_current.append(x, current)
+        # 현재 활성 세그먼트에만 추가
+        self._active_power_series.append(x, power)
+        self._active_voltage_series.append(x, voltage)
+        self._active_current_series.append(x, current)
 
-        # 출력 위젯에 그래프와 동일한 값 표시
+        # 출력 위젯 업데이트
         self._set_numeric_widget(self.output_power_edit, power)
         self._set_numeric_widget(self.output_voltage_edit, voltage)
         self._set_numeric_widget(self.output_current_edit, current)
 
         # 포인트 수 제한
-        for series in (self.series_power, self.series_voltage, self.series_current):
+        for series in (
+            self.power_series_segments
+            + self.voltage_series_segments
+            + self.current_series_segments
+        ):
             cnt = series.count()
-            if cnt > self.max_points:
-                series.removePoints(0, cnt - self.max_points)
+            if cnt > self.max_points_per_series:
+                series.removePoints(0, cnt - self.max_points_per_series)
