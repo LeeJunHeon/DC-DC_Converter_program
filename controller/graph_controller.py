@@ -9,6 +9,7 @@ from PySide6.QtCharts import (
     QLineSeries,
     QValueAxis,
     QDateTimeAxis,
+    QLegendMarker,
 )
 
 
@@ -19,8 +20,8 @@ class PowerGraphWidget(QWidget):
     - X축: 실제 현재 시간(HH:mm:ss), 최근 window_sec 초만 표시
     - Y축(왼쪽): Voltage(V) / Current(A)
     - Y축(오른쪽): Power(W)
-    - 출력 위젯 3개(QLCDNumber / QPlainTextEdit / QLineEdit)에 마지막 포인트 값 표시
-    - MainWindow 에서 set_target(), start_output(), stop_output() 으로 제어
+    - start_output() / stop_output() 호출 시 선이 끊겨 보이도록
+      ON 구간마다 새로운 QLineSeries 세그먼트를 사용
     """
 
     def __init__(
@@ -63,7 +64,7 @@ class PowerGraphWidget(QWidget):
         self.axis_x = QDateTimeAxis()
         self.axis_x.setTitleText("Time")
         self.axis_x.setFormat("HH:mm:ss")
-        self.axis_x.setTickCount(self.window_sec_int + 1)  # 1초 간격 눈금
+        self.axis_x.setTickCount(self.window_sec_int + 1)  # 1초 간격
 
         now = QDateTime.currentDateTime()
         self.axis_x.setRange(now.addSecs(-self.window_sec_int), now)
@@ -73,36 +74,52 @@ class PowerGraphWidget(QWidget):
         self.axis_y_left.setTitleText("Voltage (V) / Current (A)")
         self.axis_y_left.setRange(0, 500)
         self.axis_y_left.setLabelFormat("%.0f")
-        self.axis_y_left.setTickCount(11)  # 0,50,...,500
+        self.axis_y_left.setTickCount(11)
 
         # 오른쪽 Y축: W
         self.axis_y_right = QValueAxis()
         self.axis_y_right.setTitleText("Power (W)")
         self.axis_y_right.setRange(0, 20000)
         self.axis_y_right.setLabelFormat("%.0f")
-        self.axis_y_right.setTickCount(11)  # 0,2000,...,20000
+        self.axis_y_right.setTickCount(11)
 
         self.chart.addAxis(self.axis_x, Qt.AlignBottom)
         self.chart.addAxis(self.axis_y_left, Qt.AlignLeft)
         self.chart.addAxis(self.axis_y_right, Qt.AlignRight)
 
-        # ---------- 시리즈 (ON 구간마다 새로운 세그먼트) ----------
-        self.power_series_segments = []
-        self.voltage_series_segments = []
-        self.current_series_segments = []
+        # ---------- 범례용 시리즈 3개 (데이터는 안 넣고 이름/색깔만 담당) ----------
+        legend_power = QLineSeries()
+        legend_power.setName("Power (W)")
+        legend_power.setPen(QPen(QColor(255, 0, 0), 2))
+        self.chart.addSeries(legend_power)
+        legend_power.attachAxis(self.axis_x)
+        legend_power.attachAxis(self.axis_y_right)
 
-        self._active_power_series = None
-        self._active_voltage_series = None
-        self._active_current_series = None
+        legend_voltage = QLineSeries()
+        legend_voltage.setName("Voltage (V)")
+        legend_voltage.setPen(QPen(QColor(0, 120, 255), 2))
+        self.chart.addSeries(legend_voltage)
+        legend_voltage.attachAxis(self.axis_x)
+        legend_voltage.attachAxis(self.axis_y_left)
 
-        # 범례는 첫 번째 세그먼트에서만 이름을 보여준다.
-        self._legend_created = False
+        legend_current = QLineSeries()
+        legend_current.setName("Current (A)")
+        legend_current.setPen(QPen(QColor(0, 180, 0), 2))
+        self.chart.addSeries(legend_current)
+        legend_current.attachAxis(self.axis_x)
+        legend_current.attachAxis(self.axis_y_left)
 
-        # ---------- ChartView ----------
-        self.view = QChartView(self.chart)
-        self.view.setRenderHint(QPainter.Antialiasing)
-        self.view.setStyleSheet("border: 1px solid black;")
-        layout.addWidget(self.view)
+        self.chart.legend().setVisible(True)
+        self.chart.legend().setAlignment(Qt.AlignTop)
+
+        # ---------- 실제 데이터 시리즈 세그먼트 관리 ----------
+        self.power_series_segments: list[QLineSeries] = []
+        self.voltage_series_segments: list[QLineSeries] = []
+        self.current_series_segments: list[QLineSeries] = []
+
+        self._active_power_series: QLineSeries | None = None
+        self._active_voltage_series: QLineSeries | None = None
+        self._active_current_series: QLineSeries | None = None
 
         # ---------- 상태 & 타이머 ----------
         self.max_points_per_series = 500
@@ -119,6 +136,12 @@ class PowerGraphWidget(QWidget):
         self.timer.timeout.connect(self._on_timer)
         self.timer.start()
 
+        # ---------- ChartView ----------
+        self.view = QChartView(self.chart)
+        self.view.setRenderHint(QPainter.Antialiasing)
+        self.view.setStyleSheet("border: 1px solid black;")
+        layout.addWidget(self.view)
+
     # ------------------------------------------------------------------
     # 외부 API
     # ------------------------------------------------------------------
@@ -127,7 +150,6 @@ class PowerGraphWidget(QWidget):
         v = float(voltage)
         c = float(current)
         p = v * c
-
         self._target_voltage = v
         self._target_current = c
         self._target_power = p
@@ -135,8 +157,9 @@ class PowerGraphWidget(QWidget):
     def start_output(self) -> None:
         """
         출력 ON:
-        - 새로운 시리즈 세그먼트를 만들어서 이후 데이터는 그 세그먼트에만 추가.
-        - 이렇게 하면 출력 OFF 기간에는 선이 비어 있게 보인다.
+        - 새로운 시리즈 세그먼트를 생성.
+        - 이후 데이터는 그 세그먼트에만 추가되므로
+          OFF 기간은 선이 끊어져 보인다.
         """
         if self._power_on:
             return
@@ -156,12 +179,8 @@ class PowerGraphWidget(QWidget):
     # ------------------------------------------------------------------
     def _start_new_segment(self) -> None:
         """ON 상태로 전환될 때마다 새 QLineSeries를 만들어 연결한다."""
-        # Power
+        # Power 세그먼트
         power_series = QLineSeries()
-        if not self._legend_created:
-            power_series.setName("Power (W)")
-        else:
-            power_series.setName("")  # 범례 중복 방지
         power_series.setPen(QPen(QColor(255, 0, 0), 2))
         self.chart.addSeries(power_series)
         power_series.attachAxis(self.axis_x)
@@ -169,12 +188,8 @@ class PowerGraphWidget(QWidget):
         self.power_series_segments.append(power_series)
         self._active_power_series = power_series
 
-        # Voltage
+        # Voltage 세그먼트
         voltage_series = QLineSeries()
-        if not self._legend_created:
-            voltage_series.setName("Voltage (V)")
-        else:
-            voltage_series.setName("")
         voltage_series.setPen(QPen(QColor(0, 120, 255), 2))
         self.chart.addSeries(voltage_series)
         voltage_series.attachAxis(self.axis_x)
@@ -182,12 +197,8 @@ class PowerGraphWidget(QWidget):
         self.voltage_series_segments.append(voltage_series)
         self._active_voltage_series = voltage_series
 
-        # Current
+        # Current 세그먼트
         current_series = QLineSeries()
-        if not self._legend_created:
-            current_series.setName("Current (A)")
-        else:
-            current_series.setName("")
         current_series.setPen(QPen(QColor(0, 180, 0), 2))
         self.chart.addSeries(current_series)
         current_series.attachAxis(self.axis_x)
@@ -195,11 +206,10 @@ class PowerGraphWidget(QWidget):
         self.current_series_segments.append(current_series)
         self._active_current_series = current_series
 
-        # 첫 세그먼트에서만 범례 켜기
-        if not self._legend_created:
-            self._legend_created = True
-            self.chart.legend().setVisible(True)
-            self.chart.legend().setAlignment(Qt.AlignTop)
+        # ★ 새 세그먼트는 범례 마커를 전부 숨긴다 (위에 네모 안 생기게)
+        for series in (power_series, voltage_series, current_series):
+            for marker in self.chart.legend().markers(series):
+                marker.setVisible(False)
 
     # ------------------------------------------------------------------
     # 타이머 콜백
