@@ -174,6 +174,10 @@ class PowerGraphWidget(QWidget):
         self._active_voltage_series = None
         self._active_current_series = None
 
+    def is_output_on(self) -> bool:
+        """현재 출력 ON 상태인지 여부 리턴."""
+        return self._power_on
+
     # ------------------------------------------------------------------
     # 내부: 새로운 구간(세그먼트) 시작
     # ------------------------------------------------------------------

@@ -23,7 +23,7 @@ class MainWindow(QWidget, Ui_Form):
         super().__init__()
         self.setupUi(self)
 
-        # Qt Designer에서 만든 Graph_widget 안에 그래프 삽입
+        # 그래프 위젯 생성해서 Graph_widget 안에 넣기
         layout = QVBoxLayout(self.Graph_widget)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -39,6 +39,9 @@ class MainWindow(QWidget, Ui_Form):
         self.powerOn_button.clicked.connect(self.on_power_on_clicked)
         self.powerOff_button.clicked.connect(self.on_power_off_clicked)
         self.setValue_button.clicked.connect(self.on_set_value_clicked)
+
+        # 시작 상태: 출력 OFF 스타일
+        self._update_output_state_ui(False)
 
     # ------------------------------------------------------------------
     # 입력값 읽기
@@ -96,6 +99,25 @@ class MainWindow(QWidget, Ui_Form):
 
         return True
 
+    def _update_output_state_ui(self, on: bool) -> None:
+        """
+        출력 상태에 따라 ON 버튼 모양을 바꿔 준다.
+        - OFF: 기본 스타일, "출력 ON"
+        - ON : 초록색 배경 + 흰 글씨 + 볼드, "출력 ON (동작중)"
+        """
+        if on:
+            self.powerOn_button.setText("출력 ON (동작중)")
+            self.powerOn_button.setStyleSheet(
+                "QPushButton {"
+                "  background-color: rgb(0, 180, 0);"
+                "  color: white;"
+                "  font-weight: bold;"
+                "}"
+            )
+        else:
+            self.powerOn_button.setText("출력 ON")
+            self.powerOn_button.setStyleSheet("")
+
     # ------------------------------------------------------------------
     # 버튼 핸들러
     # ------------------------------------------------------------------
@@ -106,11 +128,13 @@ class MainWindow(QWidget, Ui_Form):
         - 메뉴얼 스펙 범위(0~60V, 0~500A) 벗어나면 경고창만 띄우고 종료
         - 정상 범위면 graph.set_target() 으로 목표값 설정
         - 입력 파워 칸에 V*I 표시
+
+        ★ 출력 ON 상태에서도 이 버튼으로만 설정값 변경이 가능하게 두고,
+          출력 ON 버튼은 단순히 "출력 시작" 역할만 한다.
         """
         voltage, current = self._read_input_voltage_current()
 
         if not self._validate_range(voltage, current):
-            # 범위 초과 → target 설정/그래프 갱신 모두 막음
             return
 
         self.graph.set_target(voltage, current)
@@ -119,10 +143,25 @@ class MainWindow(QWidget, Ui_Form):
     def on_power_on_clicked(self) -> None:
         """
         [출력 ON] 버튼:
-        - 현재 입력값을 읽어서 스펙 범위 체크
-        - 범위를 벗어나면 경고창 띄우고 출력 시작 안 함
-        - 범위 안이면 target 설정 + 입력 파워 계산 + 그래프 출력 시작
+        - 이미 출력 ON 상태라면:
+            → 아무 설정도 바꾸지 않고
+            → 안내 메시지만 띄움
+        - 출력 OFF 상태라면:
+            → 현재 입력값을 읽어서 스펙 범위 체크
+            → 범위를 벗어나면 경고창 띄우고 출력 시작 안 함
+            → 범위 안이면 target 설정 + 입력 파워 계산 + 그래프 출력 시작
         """
+        # 이미 출력 ON이면 설정은 건드리지 않고 안내만
+        if self.graph.is_output_on():
+            QMessageBox.information(
+                self,
+                "출력 이미 ON",
+                "이미 출력 ON 상태입니다.\n"
+                "출력 중에 설정값을 변경하려면 [설정 값 적용] 버튼을 사용하세요.",
+            )
+            return
+
+        # 아직 OFF 상태 → 출력 시작 절차
         voltage, current = self._read_input_voltage_current()
 
         if not self._validate_range(voltage, current):
@@ -131,14 +170,17 @@ class MainWindow(QWidget, Ui_Form):
         self.graph.set_target(voltage, current)
         self._update_input_power(voltage, current)
         self.graph.start_output()
+        self._update_output_state_ui(True)
 
     def on_power_off_clicked(self) -> None:
         """
         [출력 OFF] 버튼:
         - 그래프 포인트 추가 중단
         - X축 시간은 계속 흐름 (graph_controller 쪽에서 처리)
+        - 버튼 모양을 OFF 상태로 되돌림
         """
         self.graph.stop_output()
+        self._update_output_state_ui(False)
 
 
 if __name__ == "__main__":
