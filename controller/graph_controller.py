@@ -68,7 +68,7 @@ class PowerGraphWidget(QWidget):
         self.axis_x = QDateTimeAxis()
         self.axis_x.setTitleText("Time")
         self.axis_x.setFormat("HH:mm:ss")
-        self.axis_x.setTickCount(self.window_sec_int + 1)  # 1초 간격
+        self.axis_x.setTickCount(self.window_sec_int + 1)  # 1초 간격 눈금
 
         now = QDateTime.currentDateTime()
         self.axis_x.setRange(now.addSecs(-self.window_sec_int), now)
@@ -91,7 +91,7 @@ class PowerGraphWidget(QWidget):
         self.chart.addAxis(self.axis_y_left, Qt.AlignLeft)
         self.chart.addAxis(self.axis_y_right, Qt.AlignRight)
 
-        # ---------- 범례용 시리즈 3개 (데이터는 안 넣고 이름/색깔만 담당) ----------
+        # ---------- 범례용 시리즈 3개 (이건 이름/색상만 담당, 데이터는 안 넣음) ----------
         legend_power = QLineSeries()
         legend_power.setName("Power (W)")
         legend_power.setPen(QPen(QColor(255, 0, 0), 2))
@@ -307,6 +307,7 @@ class PowerGraphWidget(QWidget):
         - 항상 X축을 현재 시간 기준으로 슬라이딩.
         - 출력 ON 상태이면서 active 시리즈가 있을 때만 포인트 추가.
         """
+        # ★★ 여기서 매번 "현재 시각"을 새로 구한다
         now = QDateTime.currentDateTime()
 
         # X축: 현재시간 기준 window_sec 초 윈도우
@@ -323,6 +324,7 @@ class PowerGraphWidget(QWidget):
         ):
             return
 
+        # 이 now 가 그대로 append_point(dt=...) 로 넘어감
         self._append_point(now, self._target_power, self._target_voltage, self._target_current)
 
     # ------------------------------------------------------------------
@@ -350,9 +352,12 @@ class PowerGraphWidget(QWidget):
         voltage: float,
         current: float,
     ) -> None:
+        """
+        dt: 이 샘플의 실제 시간 (타이머에서 QDateTime.currentDateTime()으로 받은 값)
+        """
         x = dt.toMSecsSinceEpoch()
 
-        # 현재 활성 세그먼트에만 추가
+        # 그래프 시리즈에 포인트 추가
         self._active_power_series.append(x, power)
         self._active_voltage_series.append(x, voltage)
         self._active_current_series.append(x, current)
@@ -362,8 +367,9 @@ class PowerGraphWidget(QWidget):
         self._set_numeric_widget(self.output_voltage_edit, voltage)
         self._set_numeric_widget(self.output_current_edit, current)
 
-        # ★ 녹화 중이면 CSV에 한 줄 기록
+        # ★ 녹화 중이면 CSV에 "이 시점의 값" 기록
         if self._recording and self._record_writer is not None:
+            # dt 그대로 사용해서 각 줄마다 다른 타임스탬프를 찍는다
             time_str = dt.toString("yyyy-MM-dd HH:mm:ss")
             self._record_writer.writerow(
                 [time_str, f"{power:.3f}", f"{voltage:.3f}", f"{current:.3f}"]
