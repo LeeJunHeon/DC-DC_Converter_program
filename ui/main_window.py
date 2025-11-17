@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainWindowfjZVrt.ui'
+## Form generated from reading UI file 'mainWindowoweIjC.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.9.1
 ##
@@ -80,6 +80,7 @@ class Ui_Form(object):
         self.inputPower_edit = QLineEdit(self.groupBox)
         self.inputPower_edit.setObjectName(u"inputPower_edit")
         self.inputPower_edit.setGeometry(QRect(70, 20, 181, 41))
+        self.inputPower_edit.setReadOnly(True)
         self.inputVoltage_edit = QLineEdit(self.groupBox)
         self.inputVoltage_edit.setObjectName(u"inputVoltage_edit")
         self.inputVoltage_edit.setGeometry(QRect(70, 80, 181, 41))
