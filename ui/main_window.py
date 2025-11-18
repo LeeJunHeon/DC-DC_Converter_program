@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainWindowFHZaiw.ui'
+## Form generated from reading UI file 'mainWindowuDejtU.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.9.1
 ##
@@ -16,7 +16,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QGroupBox, QLabel,
-    QPlainTextEdit, QPushButton, QSizePolicy, QVBoxLayout,
+    QLineEdit, QPushButton, QSizePolicy, QVBoxLayout,
     QWidget)
 
 class Ui_Form(object):
@@ -37,6 +37,7 @@ class Ui_Form(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.recodeStart_button.sizePolicy().hasHeightForWidth())
         self.recodeStart_button.setSizePolicy(sizePolicy)
+        self.recodeStart_button.setMaximumSize(QSize(16777215, 80))
 
         self.gridLayout_4.addWidget(self.recodeStart_button, 5, 0, 1, 1)
 
@@ -44,6 +45,7 @@ class Ui_Form(object):
         self.recodeStop_button.setObjectName(u"recodeStop_button")
         sizePolicy.setHeightForWidth(self.recodeStop_button.sizePolicy().hasHeightForWidth())
         self.recodeStop_button.setSizePolicy(sizePolicy)
+        self.recodeStop_button.setMaximumSize(QSize(16777215, 80))
 
         self.gridLayout_4.addWidget(self.recodeStop_button, 5, 1, 1, 1)
 
@@ -51,6 +53,7 @@ class Ui_Form(object):
         self.setValue_button.setObjectName(u"setValue_button")
         sizePolicy.setHeightForWidth(self.setValue_button.sizePolicy().hasHeightForWidth())
         self.setValue_button.setSizePolicy(sizePolicy)
+        self.setValue_button.setMaximumSize(QSize(16777215, 80))
         font = QFont()
         font.setFamilies([u"\ub9d1\uc740 \uace0\ub515"])
         font.setPointSize(11)
@@ -62,6 +65,7 @@ class Ui_Form(object):
         self.powerOff_button.setObjectName(u"powerOff_button")
         sizePolicy.setHeightForWidth(self.powerOff_button.sizePolicy().hasHeightForWidth())
         self.powerOff_button.setSizePolicy(sizePolicy)
+        self.powerOff_button.setMaximumSize(QSize(16777215, 80))
         font1 = QFont()
         font1.setPointSize(11)
         self.powerOff_button.setFont(font1)
@@ -73,6 +77,7 @@ class Ui_Form(object):
         sizePolicy.setHeightForWidth(self.powerOn_button.sizePolicy().hasHeightForWidth())
         self.powerOn_button.setSizePolicy(sizePolicy)
         self.powerOn_button.setMinimumSize(QSize(0, 0))
+        self.powerOn_button.setMaximumSize(QSize(16777215, 80))
         self.powerOn_button.setFont(font1)
 
         self.gridLayout_4.addWidget(self.powerOn_button, 2, 0, 1, 2)
@@ -84,7 +89,7 @@ class Ui_Form(object):
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.groupBox_2.sizePolicy().hasHeightForWidth())
         self.groupBox_2.setSizePolicy(sizePolicy1)
-        self.groupBox_2.setMaximumSize(QSize(16777215, 200))
+        self.groupBox_2.setMaximumSize(QSize(16777215, 16777215))
         self.gridLayout_3 = QGridLayout(self.groupBox_2)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
         self.outputPower_label = QLabel(self.groupBox_2)
@@ -95,25 +100,11 @@ class Ui_Form(object):
 
         self.gridLayout_3.addWidget(self.outputPower_label, 0, 0, 1, 1)
 
-        self.outputPower_edit = QPlainTextEdit(self.groupBox_2)
-        self.outputPower_edit.setObjectName(u"outputPower_edit")
-        self.outputPower_edit.setFont(font2)
-        self.outputPower_edit.setReadOnly(True)
-
-        self.gridLayout_3.addWidget(self.outputPower_edit, 0, 1, 1, 1)
-
         self.outputVoltage_label = QLabel(self.groupBox_2)
         self.outputVoltage_label.setObjectName(u"outputVoltage_label")
         self.outputVoltage_label.setFont(font2)
 
         self.gridLayout_3.addWidget(self.outputVoltage_label, 1, 0, 1, 1)
-
-        self.outputVoltage_edit = QPlainTextEdit(self.groupBox_2)
-        self.outputVoltage_edit.setObjectName(u"outputVoltage_edit")
-        self.outputVoltage_edit.setFont(font2)
-        self.outputVoltage_edit.setReadOnly(True)
-
-        self.gridLayout_3.addWidget(self.outputVoltage_edit, 1, 1, 1, 1)
 
         self.outputCurrent_label = QLabel(self.groupBox_2)
         self.outputCurrent_label.setObjectName(u"outputCurrent_label")
@@ -121,10 +112,18 @@ class Ui_Form(object):
 
         self.gridLayout_3.addWidget(self.outputCurrent_label, 2, 0, 1, 1)
 
-        self.outputCurrent_edit = QPlainTextEdit(self.groupBox_2)
+        self.outputPower_edit = QLineEdit(self.groupBox_2)
+        self.outputPower_edit.setObjectName(u"outputPower_edit")
+
+        self.gridLayout_3.addWidget(self.outputPower_edit, 0, 1, 1, 1)
+
+        self.outputVoltage_edit = QLineEdit(self.groupBox_2)
+        self.outputVoltage_edit.setObjectName(u"outputVoltage_edit")
+
+        self.gridLayout_3.addWidget(self.outputVoltage_edit, 1, 1, 1, 1)
+
+        self.outputCurrent_edit = QLineEdit(self.groupBox_2)
         self.outputCurrent_edit.setObjectName(u"outputCurrent_edit")
-        self.outputCurrent_edit.setFont(font2)
-        self.outputCurrent_edit.setReadOnly(True)
 
         self.gridLayout_3.addWidget(self.outputCurrent_edit, 2, 1, 1, 1)
 
@@ -135,7 +134,8 @@ class Ui_Form(object):
         self.groupBox.setObjectName(u"groupBox")
         sizePolicy1.setHeightForWidth(self.groupBox.sizePolicy().hasHeightForWidth())
         self.groupBox.setSizePolicy(sizePolicy1)
-        self.groupBox.setMaximumSize(QSize(16777215, 200))
+        self.groupBox.setMaximumSize(QSize(16777215, 16777215))
+        self.groupBox.setBaseSize(QSize(0, 0))
         self.gridLayout_2 = QGridLayout(self.groupBox)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout_2.setContentsMargins(-1, -1, 9, -1)
@@ -151,42 +151,30 @@ class Ui_Form(object):
 
         self.gridLayout_2.addWidget(self.inputCurrent_label, 2, 0, 1, 1)
 
-        self.inputVoltage_edit = QPlainTextEdit(self.groupBox)
-        self.inputVoltage_edit.setObjectName(u"inputVoltage_edit")
-        self.inputVoltage_edit.setFont(font2)
-        self.inputVoltage_edit.setReadOnly(False)
-
-        self.gridLayout_2.addWidget(self.inputVoltage_edit, 1, 1, 1, 1)
-
-        self.inputCurrent_edit = QPlainTextEdit(self.groupBox)
-        self.inputCurrent_edit.setObjectName(u"inputCurrent_edit")
-        self.inputCurrent_edit.setFont(font2)
-        self.inputCurrent_edit.setReadOnly(False)
-
-        self.gridLayout_2.addWidget(self.inputCurrent_edit, 2, 1, 1, 1)
-
         self.inputVoltage_label = QLabel(self.groupBox)
         self.inputVoltage_label.setObjectName(u"inputVoltage_label")
         self.inputVoltage_label.setFont(font2)
 
         self.gridLayout_2.addWidget(self.inputVoltage_label, 1, 0, 1, 1)
 
-        self.inputPower_edit = QPlainTextEdit(self.groupBox)
+        self.inputPower_edit = QLineEdit(self.groupBox)
         self.inputPower_edit.setObjectName(u"inputPower_edit")
-        self.inputPower_edit.setFont(font2)
-        self.inputPower_edit.setReadOnly(False)
 
         self.gridLayout_2.addWidget(self.inputPower_edit, 0, 1, 1, 1)
+
+        self.inputVoltage_edit = QLineEdit(self.groupBox)
+        self.inputVoltage_edit.setObjectName(u"inputVoltage_edit")
+
+        self.gridLayout_2.addWidget(self.inputVoltage_edit, 1, 1, 1, 1)
+
+        self.inputCurrent_edit = QLineEdit(self.groupBox)
+        self.inputCurrent_edit.setObjectName(u"inputCurrent_edit")
+
+        self.gridLayout_2.addWidget(self.inputCurrent_edit, 2, 1, 1, 1)
 
 
         self.gridLayout_4.addWidget(self.groupBox, 0, 0, 1, 2)
 
-        self.gridLayout_4.setRowStretch(0, 1)
-        self.gridLayout_4.setRowStretch(1, 1)
-        self.gridLayout_4.setRowStretch(2, 4)
-        self.gridLayout_4.setRowStretch(3, 4)
-        self.gridLayout_4.setRowStretch(4, 4)
-        self.gridLayout_4.setRowStretch(5, 4)
 
         self.gridLayout_5.addLayout(self.gridLayout_4, 0, 0, 1, 1)
 
