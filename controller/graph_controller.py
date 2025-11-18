@@ -369,8 +369,11 @@ class PowerGraphWidget(QWidget):
 
         # ★ 녹화 중이면 CSV에 "이 시점의 값" 기록
         if self._recording and self._record_writer is not None:
-            # dt 그대로 사용해서 각 줄마다 다른 타임스탬프를 찍는다
-            time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # 이전: time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            raw_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # 엑셀이 날짜로 인식하지 않도록 앞에 ' 를 붙여 텍스트로 저장
+            time_str = "'" + raw_time_str
+
             self._record_writer.writerow(
                 [time_str, f"{power:.3f}", f"{voltage:.3f}", f"{current:.3f}"]
             )
