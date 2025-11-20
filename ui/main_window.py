@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainWindowuDejtU.ui'
+## Form generated from reading UI file 'mainWindowWgNeAZ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.9.1
 ##
@@ -15,8 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QGridLayout, QGroupBox, QLabel,
-    QLineEdit, QPushButton, QSizePolicy, QVBoxLayout,
+from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QGroupBox,
+    QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QSizePolicy, QSpacerItem, QSpinBox, QVBoxLayout,
     QWidget)
 
 class Ui_Form(object):
@@ -178,11 +179,52 @@ class Ui_Form(object):
 
         self.gridLayout_5.addLayout(self.gridLayout_4, 0, 0, 1, 1)
 
+        self.verticalLayout_2 = QVBoxLayout()
+        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer)
+
+        self.label = QLabel(Form)
+        self.label.setObjectName(u"label")
+
+        self.horizontalLayout.addWidget(self.label)
+
+        self.comPort_comboBox = QComboBox(Form)
+        self.comPort_comboBox.setObjectName(u"comPort_comboBox")
+
+        self.horizontalLayout.addWidget(self.comPort_comboBox)
+
+        self.label_2 = QLabel(Form)
+        self.label_2.setObjectName(u"label_2")
+
+        self.horizontalLayout.addWidget(self.label_2)
+
+        self.slaveID_spinBox = QSpinBox(Form)
+        self.slaveID_spinBox.setObjectName(u"slaveID_spinBox")
+
+        self.horizontalLayout.addWidget(self.slaveID_spinBox)
+
+        self.connect_button = QPushButton(Form)
+        self.connect_button.setObjectName(u"connect_button")
+
+        self.horizontalLayout.addWidget(self.connect_button)
+
+
+        self.verticalLayout_2.addLayout(self.horizontalLayout)
+
         self.Graph_widget = QWidget(Form)
         self.Graph_widget.setObjectName(u"Graph_widget")
         self.Graph_widget.setAutoFillBackground(True)
 
-        self.gridLayout_5.addWidget(self.Graph_widget, 0, 1, 1, 1)
+        self.verticalLayout_2.addWidget(self.Graph_widget)
+
+        self.verticalLayout_2.setStretch(0, 1)
+        self.verticalLayout_2.setStretch(1, 20)
+
+        self.gridLayout_5.addLayout(self.verticalLayout_2, 0, 1, 1, 1)
 
         self.gridLayout_5.setColumnStretch(0, 3)
         self.gridLayout_5.setColumnStretch(1, 9)
@@ -210,5 +252,8 @@ class Ui_Form(object):
         self.inputPower_label.setText(QCoreApplication.translate("Form", u"\ud30c\uc6cc[W]", None))
         self.inputCurrent_label.setText(QCoreApplication.translate("Form", u"\uc804\ub958[A]", None))
         self.inputVoltage_label.setText(QCoreApplication.translate("Form", u"\uc804\uc555[V]", None))
+        self.label.setText(QCoreApplication.translate("Form", u"COM \ud3ec\ud2b8", None))
+        self.label_2.setText(QCoreApplication.translate("Form", u"Slave ID", None))
+        self.connect_button.setText(QCoreApplication.translate("Form", u"\uc5f0\uacb0", None))
     # retranslateUi
 
