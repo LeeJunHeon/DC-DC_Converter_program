@@ -3,6 +3,7 @@
 import csv
 from pathlib import Path
 from datetime import datetime
+from typing import Callable, Optional, Tuple
 
 from PySide6.QtCore import QTimer, Qt, QDateTime, QMargins
 from PySide6.QtGui import QPen, QColor, QPainter
@@ -16,6 +17,10 @@ from PySide6.QtCharts import (
 )
 
 
+SampleProvider = Callable[[], Optional[Tuple[float, float, float]]]
+# 반환: (power_W, voltage_V, current_A) 또는 읽기 실패시 None
+
+
 class PowerGraphWidget(QWidget):
     """
     전압/전류/파워 그래프 위젯
@@ -26,6 +31,8 @@ class PowerGraphWidget(QWidget):
     - start_output() / stop_output() 호출 시 선이 끊겨 보이도록
       ON 구간마다 새로운 QLineSeries 세그먼트를 사용
     - start_recording() / stop_recording() 으로 CSV 녹화 기능 지원
+    - ★ output ON 상태일 때, 1초마다 등록된 sample_provider()를 호출해서
+      실제 장비에서 읽어온 값으로 그래프를 그림
     """
 
     def __init__(
@@ -128,6 +135,7 @@ class PowerGraphWidget(QWidget):
         # ---------- 상태 & 타이머 ----------
         self.max_points_per_series = 500
 
+        # 설정 타깃 (그래프에는 사용 안 하고, 필요하면 외부에서 쓸 수 있게만 유지)
         self._target_voltage = 0.0
         self._target_current = 0.0
         self._target_power = 0.0
@@ -139,6 +147,9 @@ class PowerGraphWidget(QWidget):
         self.timer.setInterval(self._update_interval_ms)
         self.timer.timeout.connect(self._on_timer)
         self.timer.start()
+
+        # ---------- 장비 샘플 콜백 ----------
+        self._sample_provider: Optional[SampleProvider] = None
 
         # ---------- 녹화 상태 ----------
         self._recording: bool = False
@@ -156,7 +167,10 @@ class PowerGraphWidget(QWidget):
     # 외부 API (출력 제어)
     # ------------------------------------------------------------------
     def set_target(self, voltage: float, current: float) -> None:
-        """출력 목표값 설정 (입력값 그대로 사용)."""
+        """
+        출력 목표값 설정 (그래프에는 사용하지 않고 내부 저장만 함).
+        - 필요시 UI 다른 부분에서 '목표값' 용도로 사용할 수 있음.
+        """
         v = float(voltage)
         c = float(current)
         p = v * c
@@ -187,6 +201,16 @@ class PowerGraphWidget(QWidget):
     def is_output_on(self) -> bool:
         """현재 출력 ON 상태인지 여부 리턴."""
         return self._power_on
+
+    # ------------------------------------------------------------------
+    # 외부 API (장비 샘플 공급자)
+    # ------------------------------------------------------------------
+    def set_sample_provider(self, provider: Optional[SampleProvider]) -> None:
+        """
+        장비에서 (Power, Voltage, Current)를 읽어오는 콜백을 등록.
+        - provider() 가 None 을 반환하면 이번 주기는 스킵.
+        """
+        self._sample_provider = provider
 
     # ------------------------------------------------------------------
     # 외부 API (녹화 제어)
@@ -305,9 +329,9 @@ class PowerGraphWidget(QWidget):
         """
         1초마다 호출.
         - 항상 X축을 현재 시간 기준으로 슬라이딩.
-        - 출력 ON 상태이면서 active 시리즈가 있을 때만 포인트 추가.
+        - 출력 ON 상태이면서 active 시리즈가 있을 때,
+          sample_provider()로부터 (P,V,I)를 얻어 그래프에 추가.
         """
-        # ★★ 여기서 매번 "현재 시각"을 새로 구한다
         now = QDateTime.currentDateTime()
 
         # X축: 현재시간 기준 window_sec 초 윈도우
@@ -324,8 +348,23 @@ class PowerGraphWidget(QWidget):
         ):
             return
 
-        # 이 now 가 그대로 append_point(dt=...) 로 넘어감
-        self._append_point(now, self._target_power, self._target_voltage, self._target_current)
+        if self._sample_provider is None:
+            return
+
+        # 장비에서 샘플 읽기
+        try:
+            result = self._sample_provider()
+        except Exception:
+            # 통신 에러 등은 조용히 무시 (그래프만 잠시 멈춤)
+            return
+
+        if not result:
+            # 읽기 실패 (None) -> 이번 주기는 스킵
+            return
+
+        power, voltage, current = result
+
+        self._append_point(now, power, voltage, current)
 
     # ------------------------------------------------------------------
     # 숫자 표시 헬퍼 (QLCDNumber / QPlainTextEdit / QLineEdit 지원)
@@ -369,7 +408,6 @@ class PowerGraphWidget(QWidget):
 
         # ★ 녹화 중이면 CSV에 "이 시점의 값" 기록
         if self._recording and self._record_writer is not None:
-            # 이전: time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             raw_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             # 엑셀이 날짜로 인식하지 않도록 앞에 ' 를 붙여 텍스트로 저장
             time_str = "'" + raw_time_str

@@ -17,7 +17,7 @@ from controller.DCconverter_controller import (
     list_serial_ports,
 )
 
-# 메뉴얼 스펙 범위 (MXR6020B 기준)
+# 메뉴얼 스펙 범위 (MXR6020B 기준, User Manual 1.1) :contentReference[oaicite:6]{index=6}
 MAX_VOLTAGE = 60.0   # V
 MAX_CURRENT = 500.0  # A
 MIN_VOLTAGE = 0.0
@@ -42,7 +42,7 @@ class MainWindow(QWidget, Ui_Form):
         layout.addWidget(self.graph)
 
         # Maxwell RS-485 드라이버 핸들
-        self._rs485 = None
+        self._rs485: Rs485Driver | None = None
 
         # 출력 / 설정 / 녹화 버튼 시그널
         self.powerOn_button.clicked.connect(self.on_power_on_clicked)
@@ -229,14 +229,20 @@ class MainWindow(QWidget, Ui_Form):
 
         # 그래프에 샘플 공급자 등록 (실제 장비에서 V/I 읽기)
         def sample_provider():
+            """
+            장비에서 (P, V, I) 읽어 반환.
+            읽기 실패 시 None 반환.
+            """
+            if self._rs485 is None:
+                return None
+
             try:
-                vi = drv.read_vi(timeout=0.5)
+                vi = self._rs485.read_vi(timeout=0.5)
             except Exception:
-                vi = None
+                return None
 
             if vi is None:
-                # 읽기 실패 시 target 값으로 fallback
-                return self.graph.get_target()
+                return None
 
             voltage, current = vi
             power = voltage * current
@@ -283,7 +289,7 @@ class MainWindow(QWidget, Ui_Form):
         if not self._validate_range(voltage, current):
             return
 
-        # 그래프 target / 입력 파워 갱신
+        # 그래프 target / 입력 파워 갱신 (target은 현재 그래프에는 사용하지 않지만 유지)
         self.graph.set_target(voltage, current)
         self._update_input_power(voltage, current)
 
@@ -314,7 +320,7 @@ class MainWindow(QWidget, Ui_Form):
         - OFF -> ON 전환 시 입력값/범위 체크 후
           1) RS-485 연결 확보
           2) Maxwell 모듈에 V/I 설정 + 출력 ON 명령
-          3) 그래프 출력 시작
+          3) 그래프 출력 시작 (이후 1초마다 장비에서 읽어 그래프)
         """
         if self.graph.is_output_on():
             QMessageBox.information(
