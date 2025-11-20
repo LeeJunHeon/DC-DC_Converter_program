@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainWindowWgNeAZ.ui'
+## Form generated from reading UI file 'mainWindowDCrPyQ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.9.1
 ##
@@ -29,6 +29,18 @@ class Ui_Form(object):
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
         self.gridLayout_5 = QGridLayout()
         self.gridLayout_5.setObjectName(u"gridLayout_5")
+        self.verticalLayout_2 = QVBoxLayout()
+        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.Graph_widget = QWidget(Form)
+        self.Graph_widget.setObjectName(u"Graph_widget")
+        self.Graph_widget.setAutoFillBackground(True)
+
+        self.verticalLayout_2.addWidget(self.Graph_widget)
+
+        self.verticalLayout_2.setStretch(0, 20)
+
+        self.gridLayout_5.addLayout(self.verticalLayout_2, 1, 1, 1, 1)
+
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
         self.recodeStart_button = QPushButton(Form)
@@ -177,16 +189,10 @@ class Ui_Form(object):
         self.gridLayout_4.addWidget(self.groupBox, 0, 0, 1, 2)
 
 
-        self.gridLayout_5.addLayout(self.gridLayout_4, 0, 0, 1, 1)
+        self.gridLayout_5.addLayout(self.gridLayout_4, 1, 0, 1, 1)
 
-        self.verticalLayout_2 = QVBoxLayout()
-        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout.addItem(self.horizontalSpacer)
-
         self.label = QLabel(Form)
         self.label.setObjectName(u"label")
 
@@ -212,19 +218,17 @@ class Ui_Form(object):
 
         self.horizontalLayout.addWidget(self.connect_button)
 
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout)
+        self.horizontalLayout.addItem(self.horizontalSpacer)
 
-        self.Graph_widget = QWidget(Form)
-        self.Graph_widget.setObjectName(u"Graph_widget")
-        self.Graph_widget.setAutoFillBackground(True)
+        self.deviceError_button = QPushButton(Form)
+        self.deviceError_button.setObjectName(u"deviceError_button")
 
-        self.verticalLayout_2.addWidget(self.Graph_widget)
+        self.horizontalLayout.addWidget(self.deviceError_button)
 
-        self.verticalLayout_2.setStretch(0, 1)
-        self.verticalLayout_2.setStretch(1, 20)
 
-        self.gridLayout_5.addLayout(self.verticalLayout_2, 0, 1, 1, 1)
+        self.gridLayout_5.addLayout(self.horizontalLayout, 0, 0, 1, 2)
 
         self.gridLayout_5.setColumnStretch(0, 3)
         self.gridLayout_5.setColumnStretch(1, 9)
@@ -255,5 +259,6 @@ class Ui_Form(object):
         self.label.setText(QCoreApplication.translate("Form", u"COM \ud3ec\ud2b8", None))
         self.label_2.setText(QCoreApplication.translate("Form", u"Slave ID", None))
         self.connect_button.setText(QCoreApplication.translate("Form", u"\uc5f0\uacb0", None))
+        self.deviceError_button.setText(QCoreApplication.translate("Form", u"\uc7a5\ube44 \uc54c\ub9bc/\uc624\ub958", None))
     # retranslateUi
 
