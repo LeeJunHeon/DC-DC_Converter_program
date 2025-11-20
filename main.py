@@ -1,5 +1,6 @@
 # main.py
 import sys
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -15,9 +16,10 @@ from controller.DCconverter_controller import (
     SerialConfig,
     Rs485Driver,
     list_serial_ports,
+    ALARM_BITS,
 )
 
-# 메뉴얼 스펙 범위 (MXR6020B 기준, User Manual 1.1) :contentReference[oaicite:6]{index=6}
+# 메뉴얼 스펙 범위 (MXR6020B 기준)
 MAX_VOLTAGE = 60.0   # V
 MAX_CURRENT = 500.0  # A
 MIN_VOLTAGE = 0.0
@@ -50,6 +52,9 @@ class MainWindow(QWidget, Ui_Form):
         self.setValue_button.clicked.connect(self.on_set_value_clicked)
         self.recodeStart_button.clicked.connect(self.on_record_start_clicked)
         self.recodeStop_button.clicked.connect(self.on_record_stop_clicked)
+
+        # ★ 장비 알림/오류 버튼 시그널
+        self.deviceError_button.clicked.connect(self.on_device_error_clicked)
 
         # 통신 설정 UI 초기화
         self.slaveID_spinBox.setRange(0, 62)
@@ -177,11 +182,11 @@ class MainWindow(QWidget, Ui_Form):
         ports = list_serial_ports()  # ["COM3", "COM5", ...]
         self.comPort_comboBox.clear()
 
-        if not ports:
-            self.comPort_comboBox.addItem("")  # 아무 것도 없으면 빈 항목
-            return
+        # 안내용 한 줄
+        self.comPort_comboBox.addItem("COM 포트 선택")
 
-        self.comPort_comboBox.addItems(ports)
+        if not ports:
+            self.comPort_comboBox.addItem(ports)
 
     def _ensure_rs485_connected(self) -> bool:
         """
@@ -289,7 +294,7 @@ class MainWindow(QWidget, Ui_Form):
         if not self._validate_range(voltage, current):
             return
 
-        # 그래프 target / 입력 파워 갱신 (target은 현재 그래프에는 사용하지 않지만 유지)
+        # 그래프 target / 입력 파워 갱신
         self.graph.set_target(voltage, current)
         self._update_input_power(voltage, current)
 
@@ -409,6 +414,81 @@ class MainWindow(QWidget, Ui_Form):
 
         self.graph.stop_output()
         self._update_output_state_ui(False)
+
+    # ---------------------------------------------------------------
+    # 장비 알림/오류 버튼
+    # ---------------------------------------------------------------
+    def on_device_error_clicked(self) -> None:
+        """
+        [장비 알림/오류] 버튼:
+        1) 장비 알람 레지스터(306~307) 읽어서 디코딩
+        2) 최근 로그 파일(dcconverter_*.txt)의 마지막 몇 줄을 함께 표시
+        """
+        alarm_text = self._get_alarm_summary()
+        log_text = self._get_recent_log_summary()
+
+        full_text = (
+            "[장비 알람 상태]\n"
+            f"{alarm_text}\n\n"
+            "[최근 로그]\n"
+            f"{log_text}"
+        )
+
+        QMessageBox.information(self, "장비 알림 / 오류", full_text)
+
+    def _get_alarm_summary(self) -> str:
+        """현재 장비 알람 상태를 텍스트로 정리."""
+        if self._rs485 is None or self._rs485.ser is None or not self._rs485.ser.is_open:
+            return "장비와 연결되어 있지 않습니다.\n(먼저 COM 포트와 Slave ID를 설정하고 [연결] 버튼을 눌러 주세요.)"
+
+        try:
+            mask = self._rs485.read_alarm_mask(timeout=1.0)
+        except Exception as ex:
+            return f"알람 레지스터 읽기 실패: {ex}"
+
+        if mask is None:
+            return "알람 상태를 읽지 못했습니다. (응답 없음 또는 CRC 오류)"
+
+        lines = [f"Alarm Mask: 0x{mask:08X}"]
+
+        active_bits = [b for b in ALARM_BITS.keys() if (mask & (1 << b))]
+        if not active_bits:
+            lines.append("→ 활성화된 알람이 없습니다.")
+        else:
+            lines.append("→ 활성 알람 목록:")
+            for b in sorted(active_bits):
+                desc = ALARM_BITS.get(b, "?")
+                lines.append(f"  - bit{b}: {desc}")
+
+        return "\n".join(lines)
+
+    def _get_recent_log_summary(self, max_lines: int = 50) -> str:
+        """
+        logs/ 폴더에서 가장 최근 dcconverter_*.txt 파일을 찾아
+        마지막 max_lines 줄만 문자열로 반환.
+        """
+        logs_dir = Path.cwd() / "logs"
+        if not logs_dir.exists():
+            return "로그 폴더(logs)가 없습니다."
+
+        # dcconverter_*.txt 파일이 있으면 그 중 최신, 없으면 .txt 전체 중 최신
+        txt_files = sorted(logs_dir.glob("dcconverter_*.txt"))
+        if not txt_files:
+            txt_files = sorted(logs_dir.glob("*.txt"))
+        if not txt_files:
+            return "로그 파일이 없습니다."
+
+        latest = max(txt_files, key=lambda p: p.stat().st_mtime)
+
+        try:
+            lines = latest.read_text(encoding="utf-8", errors="ignore").splitlines()
+        except Exception as ex:
+            return f"로그 파일({latest.name})을 읽는 중 오류: {ex}"
+
+        tail = lines[-max_lines:] if len(lines) > max_lines else lines
+        # 너무 길어지지 않도록 앞에 파일 이름 한 줄 붙이고 보여주기
+        header = f"파일: {latest.name} (마지막 {len(tail)}/{len(lines)} 줄)\n"
+        return header + "\n".join(tail)
 
     # ---------------------------------------------------------------
     # 녹화 시작 / 중지
