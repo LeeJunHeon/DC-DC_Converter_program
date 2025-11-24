@@ -192,7 +192,9 @@ class PowerGraphWidget(QWidget):
         if tick_count < 2:
             tick_count = 2
 
-        self.axis_x.setTickCount(tick_count)
+        # ★ 3개 그래프(P/V/I) X축 모두에 tickCount 적용
+        for axis in (self.axis_x_power, self.axis_x_voltage, self.axis_x_current):
+            axis.setTickCount(tick_count)
 
     # ------------------------------------------------------------------
     # 외부 API (출력 제어)
@@ -238,7 +240,7 @@ class PowerGraphWidget(QWidget):
         # 기존 녹화 중이면 먼저 정리
         self.stop_recording()
 
-        logs_dir = Path.cwd() / "logs"
+        logs_dir = Path.cwd() / "data"
         logs_dir.mkdir(parents=True, exist_ok=True)
 
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")

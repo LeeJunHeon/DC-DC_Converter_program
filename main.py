@@ -25,6 +25,18 @@ MAX_CURRENT = 500.0  # A
 MIN_VOLTAGE = 0.0
 MIN_CURRENT = 0.0
 
+# 치명적인(팝업을 띄울) 알람 비트 목록
+CRITICAL_ALARM_BITS = {
+    0,   # Power failure
+    1,   # Power protection
+    5,   # Input overvoltage
+    6,   # Input phase loss
+    10,  # Serious uneven flow
+    12,  # Address duplication
+    17,  # Output overvoltage
+    19,  # Output short
+    20,  # Over temperature
+}
 
 class MainWindow(QWidget, Ui_Form):
     def __init__(self):
@@ -519,9 +531,9 @@ class MainWindow(QWidget, Ui_Form):
         logs/ 폴더에서 가장 최근 dcconverter_*.txt 파일을 찾아
         마지막 max_lines 줄만 문자열로 반환.
         """
-        logs_dir = Path.cwd() / "data"
+        logs_dir = Path.cwd() / "logs"
         if not logs_dir.exists():
-            return "data 폴더(data)가 없습니다."
+            return "로그 폴더(logs)가 없습니다."
 
         # dcconverter_*.txt 파일이 있으면 그 중 최신, 없으면 .txt 전체 중 최신
         txt_files = sorted(logs_dir.glob("dcconverter_*.txt"))
@@ -541,6 +553,50 @@ class MainWindow(QWidget, Ui_Form):
         # 너무 길어지지 않도록 앞에 파일 이름 한 줄 붙이고 보여주기
         header = f"파일: {latest.name} (마지막 {len(tail)}/{len(lines)} 줄)\n"
         return header + "\n".join(tail)
+    
+    # ---------------------------------------------------------------
+    # 치명 알람 판별 + 자동 팝업
+    # ---------------------------------------------------------------
+    def _has_critical_alarm(self, mask: int | None) -> bool:
+        """알람 마스크 안에 치명 알람 비트가 하나라도 있는지 검사."""
+        if mask is None:
+            return False
+
+        for bit in CRITICAL_ALARM_BITS:
+            if mask & (1 << bit):
+                return True
+        return False
+
+    def _handle_alarm_mask(self, mask: int) -> None:
+        """
+        치명 알람만 골라서 팝업을 띄운다.
+        - CRITICAL_ALARM_BITS 에 정의된 비트 중 켜진 것만 메시지에 포함
+        - 치명 알람이 없으면 아무 것도 하지 않음
+        """
+        if not self._has_critical_alarm(mask):
+            # 치명 알람이 없으면 팝업 띄우지 않음
+            return
+
+        # 켜져 있는 치명 알람 비트만 추출
+        active_bits = [b for b in sorted(CRITICAL_ALARM_BITS) if (mask & (1 << b))]
+        if not active_bits:
+            return
+
+        lines = [f"Alarm Mask: 0x{mask:08X}", "→ 치명 알람 목록:"]
+        for b in active_bits:
+            desc = ALARM_BITS.get(b, "?")
+            lines.append(f"  - bit{b}: {desc}")
+
+        msg = (
+            "장비에서 치명적인 알람이 감지되었습니다.\n\n"
+            + "\n".join(lines)
+            + "\n\n이 알람 상태가 유지되는 동안은 장비 및 배선을 반드시 점검해 주세요."
+        )
+
+        QMessageBox.warning(self, "장비 치명 알람", msg)
+
+        # 이 마스크 값으로 팝업을 띄웠다고 기록
+        self._last_alarm_popup_mask = mask
     
     # ---------------------------------------------------------------
     # 주기적으로 읽은 알람 마스크에 대한 자동 팝업
