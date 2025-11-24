@@ -79,6 +79,7 @@ class MainWindow(QWidget, Ui_Form):
         self.powerOff_button.clicked.connect(self.on_power_off_clicked)
         self.setValue_button.clicked.connect(self.on_set_value_clicked)
         self.recodeStart_button.clicked.connect(self.on_record_start_clicked)
+        self.recodeStop_button.clicked.connect(self.on_record_stop_clicked)
         
         # 측정 주기 적용 버튼
         self.intputTime_button.clicked.connect(self.on_measure_interval_apply_clicked)
@@ -518,9 +519,9 @@ class MainWindow(QWidget, Ui_Form):
         logs/ 폴더에서 가장 최근 dcconverter_*.txt 파일을 찾아
         마지막 max_lines 줄만 문자열로 반환.
         """
-        logs_dir = Path.cwd() / "logs"
+        logs_dir = Path.cwd() / "data"
         if not logs_dir.exists():
-            return "로그 폴더(logs)가 없습니다."
+            return "data 폴더(data)가 없습니다."
 
         # dcconverter_*.txt 파일이 있으면 그 중 최신, 없으면 .txt 전체 중 최신
         txt_files = sorted(logs_dir.glob("dcconverter_*.txt"))
@@ -629,13 +630,20 @@ class MainWindow(QWidget, Ui_Form):
 
         input_power = self._update_input_power(voltage, current)
 
-        _ = self.graph.start_recording(
+        file_path  = self.graph.start_recording(
             input_power=input_power,
             input_voltage=voltage,
             input_current=current,
         )
 
-        # 메시지 박스 없이 바로 상태 전환
+        # 추가: 녹화 파일 경로 안내
+        QMessageBox.information(
+            self,
+            "녹화 시작",
+            f"데이터 녹화를 시작했습니다.\n\n"
+            f"저장 파일:\n{file_path}",
+        )
+
         self.recodeStart_button.setEnabled(False)
         self.recodeStart_button.setText("녹화 중")
 
@@ -660,7 +668,15 @@ class MainWindow(QWidget, Ui_Form):
             )
             return
 
-        _ = self.graph.stop_recording()
+        file_path = self.graph.stop_recording()
+
+        if file_path:
+            QMessageBox.information(
+                self,
+                "녹화 중지",
+                f"녹화를 종료했습니다.\n\n"
+                f"저장 파일:\n{file_path}",
+            )
 
         # 깜빡임 중단 + 버튼 원상복구
         self._record_blink_timer.stop()
@@ -754,16 +770,6 @@ class MainWindow(QWidget, Ui_Form):
             "측정 주기 변경",
             f"전압/전류/파워 및 알람 측정 주기를 {sec:.2f}초로 설정했습니다.",
         )
-
-    # ------------------------------------------------------------------
-    # 외부 API (갱신 주기 변경)
-    # ------------------------------------------------------------------
-    def set_update_interval(self, seconds: float) -> None:
-        """그래프/샘플 갱신 간격(초)을 변경 (0보다 큰 값만 허용)."""
-        if seconds <= 0:
-            return
-        self._update_interval_ms = int(seconds * 1000)
-        self.timer.setInterval(self._update_interval_ms)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -165,6 +165,21 @@ class PowerGraphWidget(QWidget):
         self._record_file_path: Path | None = None
 
     # ------------------------------------------------------------------
+    # 외부 API (측정 주기 변경)
+    # ------------------------------------------------------------------
+    def set_update_interval(self, sec: float) -> None:
+        """
+        그래프 업데이트 주기를 변경한다.
+        - sec: 초 단위 (예: 0.5, 1.0, 2.0 ...)
+        """
+        # 0 이하로 들어오는 경우를 방지
+        if sec <= 0:
+            sec = 1.0
+
+        self._update_interval_ms = int(sec * 1000)
+        self.timer.setInterval(self._update_interval_ms)
+
+    # ------------------------------------------------------------------
     # 외부 API (출력 제어)
     # ------------------------------------------------------------------
     def set_target(self, voltage: float, current: float) -> None:
