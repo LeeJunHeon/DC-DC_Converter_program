@@ -58,29 +58,6 @@ class MainWindow(QWidget, Ui_Form):
         )
         layout.addWidget(self.graph)
 
-        # ====== (옵션) 데모용 예시 데이터 ======
-        # 장비 없이 그래프만 보고 싶을 때 True 로 두고 사용하세요.
-        ENABLE_DEMO = True
-        if ENABLE_DEMO:
-            import math
-
-            phase = 0.0
-
-            def demo_provider():
-                nonlocal phase
-                phase += 0.2  # 호출될 때마다 조금씩 증가
-
-                # 범위 안에서 살짝살짝 흔들리는 값들
-                voltage = 30.0 + 20.0 * math.sin(phase)        # 10~50V 정도
-                current = 200.0 + 150.0 * math.sin(phase * 0.7)  # 50~350A 정도
-                power = voltage * current
-                return power, voltage, current
-
-            # 그래프에 데모 provider 연결 + 출력 ON 상태로 시작
-            self.graph.set_sample_provider(demo_provider)
-            self.graph.start_output()
-        # ====== 데모용 예시 데이터 끝 ======
-
         # Maxwell RS-485 드라이버 핸들
         self._rs485: Rs485Driver | None = None
         self._last_alarm_mask = None  # 최근 알람 값 저장(옵션)
@@ -594,44 +571,6 @@ class MainWindow(QWidget, Ui_Form):
         )
 
         QMessageBox.warning(self, "장비 치명 알람", msg)
-
-        # 이 마스크 값으로 팝업을 띄웠다고 기록
-        self._last_alarm_popup_mask = mask
-    
-    # ---------------------------------------------------------------
-    # 주기적으로 읽은 알람 마스크에 대한 자동 팝업
-    # ---------------------------------------------------------------
-    def _handle_alarm_mask(self, mask: int) -> None:
-        """
-        장비 알람 마스크를 받아서, 활성 비트가 있으면 한 번만 팝업을 띄운다.
-        같은 mask 값에 대해서는 중복 팝업을 띄우지 않기 위해
-        self._last_alarm_popup_mask 를 사용한다.
-        """
-        if not isinstance(mask, int):
-            return
-
-        if mask == 0:
-            return  # 활성 알람 없음
-
-        # ALARM_BITS 에 정의된 비트들 중, 현재 마스크에서 켜진 비트만 추출
-        active_bits = [b for b in ALARM_BITS.keys() if (mask & (1 << b))]
-
-        lines = [f"Alarm Mask: 0x{mask:08X}"]
-        if not active_bits:
-            lines.append("→ 활성화된 알람이 있습니다만, 정의된 비트는 없습니다.")
-        else:
-            lines.append("→ 활성 알람 목록:")
-            for b in sorted(active_bits):
-                desc = ALARM_BITS.get(b, "?")
-                lines.append(f"  - bit{b}: {desc}")
-
-        msg = (
-            "장비에서 알람이 감지되었습니다.\n\n"
-            + "\n".join(lines)
-            + "\n\n같은 알람 상태에서는 이 알림을 한 번만 표시합니다."
-        )
-
-        QMessageBox.warning(self, "장비 알람 감지", msg)
 
         # 이 마스크 값으로 팝업을 띄웠다고 기록
         self._last_alarm_popup_mask = mask
