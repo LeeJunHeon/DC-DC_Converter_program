@@ -19,18 +19,12 @@ from __future__ import annotations
 
 import os
 import time
+import serial
 import datetime
 import struct
 from dataclasses import dataclass
 from typing import Optional, Tuple, List
-
-# ===== Optional imports (pyserial) =====
-try:
-    import serial
-    from serial.tools import list_ports
-except Exception:  # pyserial 미설치 등
-    serial = None
-    list_ports = None
+from serial.tools import list_ports
 
 
 # ---------- 로그 유틸 ----------
@@ -204,15 +198,24 @@ class Rs485Driver:
         self.ser.flush()
 
     def _read_exact(self, n: int, timeout: float) -> bytes:
-        end = time.time() + timeout
-        out = bytearray()
-        while time.time() < end and len(out) < n:
-            n_wait = self.ser.in_waiting
-            if n_wait:
-                out += self.ser.read(n_wait)
-            else:
-                time.sleep(0.005)
-        return bytes(out)
+        """
+        n바이트 '정확히' 읽기.
+        - 예전 방식은 in_waiting 만큼 한 번에 읽어버려서,
+          헤더(3바이트)만 읽으려 할 때 응답 전체를 다 먹는 문제가 있었음.
+        - 여기서는 pyserial의 read(n)에 timeout만 설정해서
+          최대 n바이트까지만 읽도록 수정.
+        """
+        if n <= 0:
+            return b""
+
+        # 기존 타임아웃을 잠시 바꿨다가 다시 원복
+        old_timeout = self.ser.timeout
+        try:
+            self.ser.timeout = timeout
+            data = self.ser.read(n)  # 최대 n바이트까지만 읽음
+            return data
+        finally:
+            self.ser.timeout = old_timeout
 
     # ----- 기능 코드 구현: 0x03 / 0x06 / 0x10 -----
     def read_holding_registers(

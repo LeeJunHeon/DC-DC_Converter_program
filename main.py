@@ -58,7 +58,7 @@ class MainWindow(QWidget, Ui_Form):
 
         # 통신 설정 UI 초기화
         self.slaveID_spinBox.setRange(0, 62)
-        self.slaveID_spinBox.setValue(1)
+        self.slaveID_spinBox.setValue(0)
         self.connect_button.clicked.connect(self.on_connect_button_clicked)
 
         # COM 포트 목록 한번 채우기
@@ -178,15 +178,18 @@ class MainWindow(QWidget, Ui_Form):
     # COM 포트 / RS-485 연결 관리
     # ---------------------------------------------------------------
     def _refresh_com_ports(self) -> None:
-        """PC에 연결된 COM 포트 목록을 콤보박스에 채운다."""
-        ports = list_serial_ports()  # ["COM3", "COM5", ...]
+        ports = list_serial_ports()  # 예: ["COM3", "COM4"]
         self.comPort_comboBox.clear()
 
-        # 안내용 한 줄
+        # 안내용 첫 줄 (원하면 빼도 됨)
         self.comPort_comboBox.addItem("COM 포트 선택")
 
-        if not ports:
-            self.comPort_comboBox.addItem(ports)
+        if ports:
+            # ★ 리스트를 한 번에 추가할 때는 addItems 사용
+            self.comPort_comboBox.addItems(ports)
+        else:
+            # 실제 포트가 하나도 없으면 안내만 남겨두기
+            pass
 
     def _ensure_rs485_connected(self) -> bool:
         """
