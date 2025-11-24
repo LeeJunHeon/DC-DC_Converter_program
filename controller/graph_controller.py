@@ -169,15 +169,30 @@ class PowerGraphWidget(QWidget):
     # ------------------------------------------------------------------
     def set_update_interval(self, sec: float) -> None:
         """
-        그래프 업데이트 주기를 변경한다.
-        - sec: 초 단위 (예: 0.5, 1.0, 2.0 ...)
+        그래프 업데이트 / 장비 폴링 주기를 변경한다.
+        - sec: 초 단위 (예: 0.5, 1.0, 2.0, 5.0 ...)
         """
         # 0 이하로 들어오는 경우를 방지
         if sec <= 0:
             sec = 1.0
 
+        # --- 타이머 간격 변경 (장비 읽기 + 그래프 업데이트 주기) ---
         self._update_interval_ms = int(sec * 1000)
         self.timer.setInterval(self._update_interval_ms)
+
+        # --- X축 눈금 간격도 주기에 맞추기 ---
+        # window_sec(가로로 보이는 시간 범위)를 sec 간격으로 나눈 개수 + 1
+        # 예) window_sec=10, sec=5  -> 눈금 3개 (시작, +5초, 끝)
+        if self.window_sec_int > 0:
+            tick_count = int(self.window_sec_int / sec) + 1
+        else:
+            tick_count = 2
+
+        # 최소 2개는 유지
+        if tick_count < 2:
+            tick_count = 2
+
+        self.axis_x.setTickCount(tick_count)
 
     # ------------------------------------------------------------------
     # 외부 API (출력 제어)
