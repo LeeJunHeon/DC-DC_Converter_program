@@ -148,6 +148,13 @@ class PowerGraphWidget(QWidget):
 
         self._power_on = False
 
+        # ---------- 타이머 설정 ----------
+        self._update_interval_ms = 1000  # 기본 1초
+        self.timer = QTimer(self)
+        self.timer.setInterval(self._update_interval_ms)
+        self.timer.timeout.connect(self._on_timer)
+        self.timer.start()
+
         # ---------- 장비 샘플 콜백 ----------
         self._sample_provider: Optional[SampleProvider] = None
 
@@ -156,20 +163,6 @@ class PowerGraphWidget(QWidget):
         self._record_file = None
         self._record_writer: csv.writer | None = None
         self._record_file_path: Path | None = None
-
-    # ------------------------------------------------------------------
-    # 외부 API (갱신 주기 변경)
-    # ------------------------------------------------------------------
-    def set_update_interval(self, seconds: float) -> None:
-        """
-        그래프 / 샘플 갱신 간격(초)을 변경한다.
-        0 이하 값은 무시한다.
-        """
-        if seconds <= 0:
-            return
-
-        self._update_interval_ms = int(seconds * 1000)
-        self.timer.setInterval(self._update_interval_ms)
 
     # ------------------------------------------------------------------
     # 외부 API (출력 제어)

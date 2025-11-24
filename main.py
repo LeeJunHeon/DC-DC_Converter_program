@@ -72,6 +72,7 @@ class MainWindow(QWidget, Ui_Form):
         # Maxwell RS-485 드라이버 핸들
         self._rs485: Rs485Driver | None = None
         self._last_alarm_mask = None  # 최근 알람 값 저장(옵션)
+        self._last_alarm_popup_mask = 0  # 마지막으로 팝업을 띄운 알람 마스크
 
         # 출력 / 설정 / 녹화 버튼 시그널
         self.powerOn_button.clicked.connect(self.on_power_on_clicked)
@@ -285,13 +286,26 @@ class MainWindow(QWidget, Ui_Form):
             # 2) 알람 마스크도 같은 주기로 읽어 둠
             try:
                 alarm_mask = self._rs485.read_alarm_mask(timeout=0.5)
+                # 최근 알람 값 저장
                 self._last_alarm_mask = alarm_mask
-                # 나중에 치명 알람만 팝업 띄우는 로직을 추가할 수 있음
+
+                # 알람이 있고(마스크 != 0), 이전에 같은 마스크로 팝업을 띄운 적이 없으면 팝업
+                if (
+                    isinstance(alarm_mask, int)
+                    and alarm_mask != 0
+                    and alarm_mask != self._last_alarm_popup_mask
+                ):
+                    self._handle_alarm_mask(alarm_mask)
             except Exception:
                 # 알람 읽기 실패는 일단 무시 (통신 상태만 로그 등으로 처리 가능)
                 pass
 
             return power, voltage, current
+
+        # ★ 그래프에서 Maxwell 실측값을 사용하도록 샘플 공급자 연결
+        self.graph.set_sample_provider(sample_provider)
+
+        return True
 
     def on_connect_button_clicked(self) -> None:
         """
@@ -526,6 +540,44 @@ class MainWindow(QWidget, Ui_Form):
         # 너무 길어지지 않도록 앞에 파일 이름 한 줄 붙이고 보여주기
         header = f"파일: {latest.name} (마지막 {len(tail)}/{len(lines)} 줄)\n"
         return header + "\n".join(tail)
+    
+    # ---------------------------------------------------------------
+    # 주기적으로 읽은 알람 마스크에 대한 자동 팝업
+    # ---------------------------------------------------------------
+    def _handle_alarm_mask(self, mask: int) -> None:
+        """
+        장비 알람 마스크를 받아서, 활성 비트가 있으면 한 번만 팝업을 띄운다.
+        같은 mask 값에 대해서는 중복 팝업을 띄우지 않기 위해
+        self._last_alarm_popup_mask 를 사용한다.
+        """
+        if not isinstance(mask, int):
+            return
+
+        if mask == 0:
+            return  # 활성 알람 없음
+
+        # ALARM_BITS 에 정의된 비트들 중, 현재 마스크에서 켜진 비트만 추출
+        active_bits = [b for b in ALARM_BITS.keys() if (mask & (1 << b))]
+
+        lines = [f"Alarm Mask: 0x{mask:08X}"]
+        if not active_bits:
+            lines.append("→ 활성화된 알람이 있습니다만, 정의된 비트는 없습니다.")
+        else:
+            lines.append("→ 활성 알람 목록:")
+            for b in sorted(active_bits):
+                desc = ALARM_BITS.get(b, "?")
+                lines.append(f"  - bit{b}: {desc}")
+
+        msg = (
+            "장비에서 알람이 감지되었습니다.\n\n"
+            + "\n".join(lines)
+            + "\n\n같은 알람 상태에서는 이 알림을 한 번만 표시합니다."
+        )
+
+        QMessageBox.warning(self, "장비 알람 감지", msg)
+
+        # 이 마스크 값으로 팝업을 띄웠다고 기록
+        self._last_alarm_popup_mask = mask
 
     # ---------------------------------------------------------------
     # 녹화 시작 / 중지
@@ -660,8 +712,8 @@ class MainWindow(QWidget, Ui_Form):
     def on_measure_interval_apply_clicked(self) -> None:
         """
         상단 [측정 주기(초)] 입력값을 읽어서
-        - 0.5초 이하 입력 시: 경고창 띄우고, 주기는 변경하지 않음
-        - 그 외: 그래프/샘플 갱신 간격을 해당 초로 변경
+        - 0.5초 미만 입력 시: 경고창 띄우고, 주기는 변경하지 않음
+        - 0.5초 이상이면: 그래프/샘플 갱신 간격을 해당 초로 변경
         """
         text = (self.inputTime_edit.text() or "").strip()
         if not text:
@@ -682,13 +734,13 @@ class MainWindow(QWidget, Ui_Form):
             )
             return
 
-        # 0.5초 이하는 허용하지 않음
-        if sec <= 0.5:
+        # 0.5초 미만은 허용하지 않음 (0.5 이상부터 허용)
+        if sec < 0.5:
             QMessageBox.warning(
                 self,
                 "측정 주기 제한",
-                "측정 주기는 0.5초보다 크게만 설정할 수 있습니다.\n"
-                "(장비 보호를 위해 0.5초 이하는 사용할 수 없습니다.)",
+                "측정 주기는 0.5초 이상으로만 설정할 수 있습니다.\n"
+                "(장비 보호를 위해 0.5초 미만은 사용할 수 없습니다.)",
             )
             # 사용자가 다시 입력하도록, 기본값으로 돌려놓고 끝냄
             self.inputTime_edit.setText("1.0")
