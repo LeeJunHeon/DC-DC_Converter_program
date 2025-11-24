@@ -31,6 +31,9 @@ class MainWindow(QWidget, Ui_Form):
         super().__init__()
         self.setupUi(self)
 
+        # 측정 주기 기본값 1.0초
+        self.inputTime_edit.setText("1.0")
+
         # 그래프 위젯 생성해서 Graph_widget 안에 넣기
         layout = QVBoxLayout(self.Graph_widget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -43,16 +46,42 @@ class MainWindow(QWidget, Ui_Form):
         )
         layout.addWidget(self.graph)
 
+        # ====== (옵션) 데모용 예시 데이터 ======
+        # 장비 없이 그래프만 보고 싶을 때 True 로 두고 사용하세요.
+        ENABLE_DEMO = True
+        if ENABLE_DEMO:
+            import math
+
+            phase = 0.0
+
+            def demo_provider():
+                nonlocal phase
+                phase += 0.2  # 호출될 때마다 조금씩 증가
+
+                # 범위 안에서 살짝살짝 흔들리는 값들
+                voltage = 30.0 + 20.0 * math.sin(phase)        # 10~50V 정도
+                current = 200.0 + 150.0 * math.sin(phase * 0.7)  # 50~350A 정도
+                power = voltage * current
+                return power, voltage, current
+
+            # 그래프에 데모 provider 연결 + 출력 ON 상태로 시작
+            self.graph.set_sample_provider(demo_provider)
+            self.graph.start_output()
+        # ====== 데모용 예시 데이터 끝 ======
+
         # Maxwell RS-485 드라이버 핸들
         self._rs485: Rs485Driver | None = None
+        self._last_alarm_mask = None  # 최근 알람 값 저장(옵션)
 
         # 출력 / 설정 / 녹화 버튼 시그널
         self.powerOn_button.clicked.connect(self.on_power_on_clicked)
         self.powerOff_button.clicked.connect(self.on_power_off_clicked)
         self.setValue_button.clicked.connect(self.on_set_value_clicked)
         self.recodeStart_button.clicked.connect(self.on_record_start_clicked)
-        self.recodeStop_button.clicked.connect(self.on_record_stop_clicked)
         
+        # 측정 주기 적용 버튼
+        self.intputTime_button.clicked.connect(self.on_measure_interval_apply_clicked)
+
         # 통신 설정 UI 초기화
         self.slaveID_spinBox.setRange(0, 62)
         self.slaveID_spinBox.setValue(0)
@@ -232,15 +261,16 @@ class MainWindow(QWidget, Ui_Form):
 
         self._rs485 = drv
 
-        # 그래프에 샘플 공급자 등록 (실제 장비에서 V/I 읽기)
         def sample_provider():
             """
-            장비에서 (P, V, I) 읽어 반환.
-            읽기 실패 시 None 반환.
+            장비에서 (P, V, I) + 알람 마스크를 읽어 옴.
+            - VI 읽기 실패 시 None 반환 (그래프 추가 안 함)
+            - 알람 읽기 실패는 그래프에 영향 주지 않음
             """
             if self._rs485 is None:
                 return None
 
+            # 1) VI 읽기
             try:
                 vi = self._rs485.read_vi(timeout=0.5)
             except Exception:
@@ -251,10 +281,17 @@ class MainWindow(QWidget, Ui_Form):
 
             voltage, current = vi
             power = voltage * current
-            return power, voltage, current
 
-        self.graph.set_sample_provider(sample_provider)
-        return True
+            # 2) 알람 마스크도 같은 주기로 읽어 둠
+            try:
+                alarm_mask = self._rs485.read_alarm_mask(timeout=0.5)
+                self._last_alarm_mask = alarm_mask
+                # 나중에 치명 알람만 팝업 띄우는 로직을 추가할 수 있음
+            except Exception:
+                # 알람 읽기 실패는 일단 무시 (통신 상태만 로그 등으로 처리 가능)
+                pass
+
+            return power, voltage, current
 
     def on_connect_button_clicked(self) -> None:
         """
@@ -617,6 +654,64 @@ class MainWindow(QWidget, Ui_Form):
                 "}"
             )
 
+    # ---------------------------------------------------------------
+    # 측정 주기 적용 (상단 inputTime_edit + intputTime_button)
+    # ---------------------------------------------------------------
+    def on_measure_interval_apply_clicked(self) -> None:
+        """
+        상단 [측정 주기(초)] 입력값을 읽어서
+        - 0.5초 이하 입력 시: 경고창 띄우고, 주기는 변경하지 않음
+        - 그 외: 그래프/샘플 갱신 간격을 해당 초로 변경
+        """
+        text = (self.inputTime_edit.text() or "").strip()
+        if not text:
+            QMessageBox.warning(
+                self,
+                "입력 필요",
+                "측정 주기를 초 단위로 입력해 주세요.\n예) 1.0",
+            )
+            return
+
+        try:
+            sec = float(text)
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "입력 오류",
+                "측정 주기는 숫자로 입력해 주세요.\n예) 1.0",
+            )
+            return
+
+        # 0.5초 이하는 허용하지 않음
+        if sec <= 0.5:
+            QMessageBox.warning(
+                self,
+                "측정 주기 제한",
+                "측정 주기는 0.5초보다 크게만 설정할 수 있습니다.\n"
+                "(장비 보호를 위해 0.5초 이하는 사용할 수 없습니다.)",
+            )
+            # 사용자가 다시 입력하도록, 기본값으로 돌려놓고 끝냄
+            self.inputTime_edit.setText("1.0")
+            return
+
+        # 그래프/샘플 갱신 주기 변경
+        self.graph.set_update_interval(sec)
+
+        QMessageBox.information(
+            self,
+            "측정 주기 변경",
+            f"전압/전류/파워 및 알람 측정 주기를 {sec:.2f}초로 설정했습니다.",
+        )
+
+    # ------------------------------------------------------------------
+    # 외부 API (갱신 주기 변경)
+    # ------------------------------------------------------------------
+    def set_update_interval(self, seconds: float) -> None:
+        """그래프/샘플 갱신 간격(초)을 변경 (0보다 큰 값만 허용)."""
+        if seconds <= 0:
+            return
+        self._update_interval_ms = int(seconds * 1000)
+        self.timer.setInterval(self._update_interval_ms)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
