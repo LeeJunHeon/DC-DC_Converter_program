@@ -51,7 +51,7 @@ def log_line(line: str) -> None:
     콘솔 + 로그 파일에 동시에 한 줄 출력.
     - 통신 프레임 디버깅용 (원하지 않으면 나중에 print 부분만 막아도 됨)
     """
-    print(line)
+    #print(line)
     try:
         LOGF.write(line + "\n")
         LOGF.flush()

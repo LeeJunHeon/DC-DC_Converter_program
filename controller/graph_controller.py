@@ -170,8 +170,9 @@ class PowerGraphWidget(QWidget):
     def set_update_interval(self, sec: float) -> None:
         """
         그래프 업데이트 / 장비 폴링 주기와
-        X축 눈금 간격을 변경한다.
-        - sec: 초 단위 (예: 0.5, 1.0, 2.0, 5.0 ...)
+        X축에 보이는 시간 범위를 변경한다.
+
+        - sec: 초 단위 (예: 1.0, 2.0, 3.0, 5.0 ...)
         """
         # 0 이하로 들어오는 경우를 방지
         if sec <= 0:
@@ -181,26 +182,33 @@ class PowerGraphWidget(QWidget):
         self._update_interval_ms = int(sec * 1000)
         self.timer.setInterval(self._update_interval_ms)
 
-        # --- X축 눈금 개수만 조정 (화면에 보이는 전체 시간은 그대로) ---
-        #   window_sec_int : 화면에 보이는 전체 시간(초)  (예: 10초)
-        #   sec            : 측정 주기(초)               (예: 5초)
-        #   tick_count     : window_sec / sec + 1        (예: 10/5+1 = 3개)
-        span = max(1.0, float(self.window_sec_int))
-        tick_count = int(span / sec) + 1
+        # --- X축 전체 시간 범위 재계산 ---
+        #   눈금 개수(tickCount)는 그대로 두고,
+        #   눈금 간격이 'sec' 가 되도록 window_sec를 조정
+        #
+        #   window_sec = sec * (tick_count - 1)
+        #   예) tick_count = 11, sec = 3초 -> window_sec = 30초
+        if self._x_axes:
+            tick_count = self._x_axes[0].tickCount()
+        else:
+            # 혹시라도 비어있으면 현재 설정을 기준으로
+            tick_count = int(self.window_sec_int) + 1
 
-        # 최소·최대 개수 제한 (너무 적거나 많이 찍히는 것 방지)
         if tick_count < 2:
             tick_count = 2
-        if tick_count > 20:
-            tick_count = 20
 
-        # ★ 각 그래프의 X축에 동일한 tickCount 적용
+        self.window_sec = sec * (tick_count - 1)
+        self.window_sec_int = max(1, int(self.window_sec))
+
+        # 현재 시각 기준으로 새 범위를 즉시 적용
+        now = QDateTime.currentDateTime()
+        start_dt = now.addSecs(-self.window_sec_int)
+
         for axis in (self.axis_x_power, self.axis_x_voltage, self.axis_x_current):
-            axis.setTickCount(tick_count)
-
-        # ※ 여기서는 window_sec / window_sec_int / axis.setRange() 를 건드리지 않는다.
-        #    → 화면에 보이는 전체 시간 길이는 그대로 유지되고,
-        #       눈금 간격만 sec에 맞춰 바뀜.
+            axis.setRange(start_dt, now)
+        # ★ tickCount는 건드리지 않는다.
+        #    => 세로 격자/눈금 개수는 처음 상태 그대로 유지되고,
+        #       눈금 간격(시간 간격)만 sec에 맞게 바뀜.
 
     # ------------------------------------------------------------------
     # 외부 API (출력 제어)
