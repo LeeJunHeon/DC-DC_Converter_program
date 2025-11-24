@@ -52,10 +52,7 @@ class MainWindow(QWidget, Ui_Form):
         self.setValue_button.clicked.connect(self.on_set_value_clicked)
         self.recodeStart_button.clicked.connect(self.on_record_start_clicked)
         self.recodeStop_button.clicked.connect(self.on_record_stop_clicked)
-
-        # ★ 장비 알림/오류 버튼 시그널
-        self.deviceError_button.clicked.connect(self.on_device_error_clicked)
-
+        
         # 통신 설정 UI 초기화
         self.slaveID_spinBox.setRange(0, 62)
         self.slaveID_spinBox.setValue(0)
