@@ -318,8 +318,9 @@ class MainWindow(QWidget, Ui_Form):
         """
         [설정 값 적용] 버튼:
         - 전압/전류 입력칸이 비어 있으면 경고
-        - 스펙 범위 체크 후 그래프 target 과 입력 파워 갱신
-        - 출력이 ON 상태라면 장비에도 즉시 새로운 V/I 적용
+        - 스펙 범위 체크
+        - 장비가 연결 + 출력 ON 상태일 때만
+          그래프 / 입력 파워 / Maxwell 설정을 변경
         """
         v_text = (self.inputVoltage_edit.text() or "").strip()
         i_text = (self.inputCurrent_edit.text() or "").strip()
@@ -331,16 +332,41 @@ class MainWindow(QWidget, Ui_Form):
             )
             return
 
+        # 숫자 변환 + 범위 체크 (기존 그대로)
         voltage, current = self._read_input_voltage_current()
         if not self._validate_range(voltage, current):
             return
 
-        # 그래프 target / 입력 파워 갱신
+        # ---- [추가] 장비 연결 / 출력 상태 확인 ----
+        rs485_connected = False
+        if self._rs485 is not None:
+            try:
+                if (
+                    getattr(self._rs485, "ser", None) is not None
+                    and self._rs485.ser.is_open
+                ):
+                    rs485_connected = True
+            except Exception:
+                rs485_connected = False
+
+        # ▶ 장비가 연결 안 되었거나, 출력이 OFF면: 알림만 띄우고 아무것도 안 함
+        if (not rs485_connected) or (not self.graph.is_output_on()):
+            QMessageBox.information(
+                self,
+                "출력 OFF 또는 미연결",
+                "장비 출력이 OFF 상태이거나 Maxwell 장비와 RS-485 통신이 연결되어 있지 않습니다.\n"
+                "이번 설정 값은 적용되지 않았습니다.\n\n"
+                "[연결] 버튼으로 통신을 먼저 연결하고, [출력 ON] 후에 다시 시도해 주세요.",
+            )
+            return
+
+        # ---- 여기부터는 '장비 연결 + 출력 ON'인 경우에만 실행 ----
+        # 그래프 target / 입력 파워 갱신 (왼쪽 UI)
         self.graph.set_target(voltage, current)
         self._update_input_power(voltage, current)
 
-        # 출력이 이미 ON 이고, 장비와 연결되어 있으면 실제 장비에도 V/I 적용
-        if self.graph.is_output_on() and self._rs485 is not None:
+        # Maxwell 장비에도 실제 V/I 적용 (기존 코드 그대로)
+        if self._rs485 is not None:
             try:
                 ok = self._rs485.set_vi_and_start(voltage, current, timeout=1.0)
             except Exception as ex:

@@ -170,7 +170,7 @@ class PowerGraphWidget(QWidget):
     def set_update_interval(self, sec: float) -> None:
         """
         그래프 업데이트 / 장비 폴링 주기와
-        X축에 보이는 시간 범위를 변경한다.
+        X축 눈금 간격을 변경한다.
         - sec: 초 단위 (예: 0.5, 1.0, 2.0, 5.0 ...)
         """
         # 0 이하로 들어오는 경우를 방지
@@ -181,21 +181,26 @@ class PowerGraphWidget(QWidget):
         self._update_interval_ms = int(sec * 1000)
         self.timer.setInterval(self._update_interval_ms)
 
-        # --- X축에 보이는 시간 범위를 sec 로 맞추기 ---
-        # 설명:
-        #   - window_sec / window_sec_int : "화면에 보이는 전체 시간 길이(초)"
-        #   - _on_timer()에서 이 값을 사용해서 범위를 슬라이딩함
-        self.window_sec = sec
-        self.window_sec_int = max(1, int(sec))
+        # --- X축 눈금 개수만 조정 (화면에 보이는 전체 시간은 그대로) ---
+        #   window_sec_int : 화면에 보이는 전체 시간(초)  (예: 10초)
+        #   sec            : 측정 주기(초)               (예: 5초)
+        #   tick_count     : window_sec / sec + 1        (예: 10/5+1 = 3개)
+        span = max(1.0, float(self.window_sec_int))
+        tick_count = int(span / sec) + 1
 
-        # 바로 한 번 현재 시각 기준으로 범위도 갱신해 준다.
-        now = QDateTime.currentDateTime()
-        start_dt = now.addSecs(-self.window_sec_int)
+        # 최소·최대 개수 제한 (너무 적거나 많이 찍히는 것 방지)
+        if tick_count < 2:
+            tick_count = 2
+        if tick_count > 20:
+            tick_count = 20
 
+        # ★ 각 그래프의 X축에 동일한 tickCount 적용
         for axis in (self.axis_x_power, self.axis_x_voltage, self.axis_x_current):
-            axis.setRange(start_dt, now)
-        # ★ 여기서는 axis.setTickCount(...)를 전혀 호출하지 않는다.
-        #    => 축 눈금 개수는 처음 생성 시 설정된 값 그대로 유지됨
+            axis.setTickCount(tick_count)
+
+        # ※ 여기서는 window_sec / window_sec_int / axis.setRange() 를 건드리지 않는다.
+        #    → 화면에 보이는 전체 시간 길이는 그대로 유지되고,
+        #       눈금 간격만 sec에 맞춰 바뀜.
 
     # ------------------------------------------------------------------
     # 외부 API (출력 제어)
