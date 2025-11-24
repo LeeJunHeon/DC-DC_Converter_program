@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainWindowDCrPyQ.ui'
+## Form generated from reading UI file 'mainWindowJQOFvS.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.9.1
 ##
@@ -31,13 +31,22 @@ class Ui_Form(object):
         self.gridLayout_5.setObjectName(u"gridLayout_5")
         self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
-        self.Graph_widget = QWidget(Form)
-        self.Graph_widget.setObjectName(u"Graph_widget")
-        self.Graph_widget.setAutoFillBackground(True)
+        self.powerGraph_widget = QWidget(Form)
+        self.powerGraph_widget.setObjectName(u"powerGraph_widget")
 
-        self.verticalLayout_2.addWidget(self.Graph_widget)
+        self.verticalLayout_2.addWidget(self.powerGraph_widget)
 
-        self.verticalLayout_2.setStretch(0, 20)
+        self.voltageGraph_widget = QWidget(Form)
+        self.voltageGraph_widget.setObjectName(u"voltageGraph_widget")
+
+        self.verticalLayout_2.addWidget(self.voltageGraph_widget)
+
+        self.currentGraph_widget = QWidget(Form)
+        self.currentGraph_widget.setObjectName(u"currentGraph_widget")
+        self.currentGraph_widget.setAutoFillBackground(True)
+
+        self.verticalLayout_2.addWidget(self.currentGraph_widget)
+
 
         self.gridLayout_5.addLayout(self.verticalLayout_2, 1, 1, 1, 1)
 
@@ -222,10 +231,25 @@ class Ui_Form(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
 
-        self.deviceError_button = QPushButton(Form)
-        self.deviceError_button.setObjectName(u"deviceError_button")
+        self.label_3 = QLabel(Form)
+        self.label_3.setObjectName(u"label_3")
 
-        self.horizontalLayout.addWidget(self.deviceError_button)
+        self.horizontalLayout.addWidget(self.label_3)
+
+        self.inputTime_edit = QLineEdit(Form)
+        self.inputTime_edit.setObjectName(u"inputTime_edit")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.inputTime_edit.sizePolicy().hasHeightForWidth())
+        self.inputTime_edit.setSizePolicy(sizePolicy2)
+
+        self.horizontalLayout.addWidget(self.inputTime_edit)
+
+        self.intputTime_button = QPushButton(Form)
+        self.intputTime_button.setObjectName(u"intputTime_button")
+
+        self.horizontalLayout.addWidget(self.intputTime_button)
 
 
         self.gridLayout_5.addLayout(self.horizontalLayout, 0, 0, 1, 2)
@@ -259,6 +283,7 @@ class Ui_Form(object):
         self.label.setText(QCoreApplication.translate("Form", u"COM \ud3ec\ud2b8", None))
         self.label_2.setText(QCoreApplication.translate("Form", u"Slave ID", None))
         self.connect_button.setText(QCoreApplication.translate("Form", u"\uc5f0\uacb0", None))
-        self.deviceError_button.setText(QCoreApplication.translate("Form", u"\uc7a5\ube44 \uc54c\ub9bc/\uc624\ub958", None))
+        self.label_3.setText(QCoreApplication.translate("Form", u"\uce21\uc815 \uae30\uc900 \uc2dc\uac04", None))
+        self.intputTime_button.setText(QCoreApplication.translate("Form", u"\uc801\uc6a9", None))
     # retranslateUi
 

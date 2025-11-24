@@ -338,6 +338,26 @@ class Rs485Driver:
         if len(regs) != 2:
             return None
         return combine_words_to_u32_be(regs[0], regs[1])
+    
+    def read_vi_and_alarm(
+        self, timeout: float = 1.0
+    ) -> Optional[Tuple[float, float, int]]:
+        """
+        전압/전류 + 알람을 한 번에 읽기.
+        - 302~307: V(INT32), I(INT32), ALARM(UINT32) => 6 regs
+        반환: (전압[V], 전류[A], alarm_mask) 또는 실패 시 None
+        """
+        regs = self.read_holding_registers(REG_RO_V_H, 6, timeout=timeout)
+        if len(regs) != 6:
+            return None
+
+        v_raw = combine_words_to_u32_be(regs[0], regs[1])  # 302~303
+        i_raw = combine_words_to_u32_be(regs[2], regs[3])  # 304~305
+        alarm_mask = combine_words_to_u32_be(regs[4], regs[5])  # 306~307
+
+        voltage = v_raw / 1000.0
+        current = i_raw / 1000.0
+        return voltage, current, alarm_mask
 
     def read_power_on_flag(self, timeout: float = 1.0) -> Optional[bool]:
         """
